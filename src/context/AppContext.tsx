@@ -175,6 +175,9 @@ interface AppContextType {
   regenerateApiKey: (apiId: string) => void;
   
   // Navigation & Core Actions
+  appMode: 'launcher' | 'web';
+  setAppMode: (mode: 'launcher' | 'web') => void;
+  toggleAppMode: () => void;
   setView: (view: ViewType) => void;
   setSelectedModelId: (id: string) => void;
   setSelectedCreatorId: (id: string) => void;
@@ -236,7 +239,31 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [creators] = useState<Creator[]>(mockCreators);
   const [posts, setPosts] = useState<CommunityPost[]>(mockCommunityPosts);
   const [workshopItems, setWorkshopItems] = useState<WorkshopItem[]>(mockWorkshopItems);
+  const [appMode, setAppModeState] = useState<'launcher' | 'web'>(() => {
+    try {
+      const saved = localStorage.getItem('agora_app_mode');
+      if (saved === 'web' || saved === 'launcher') return saved;
+    } catch {}
+    return 'launcher';
+  });
   const [currentView, setViewInternal] = useState<ViewType>('store');
+
+  const setAppMode = useCallback((mode: 'launcher' | 'web') => {
+    setAppModeState(mode);
+    try {
+      localStorage.setItem('agora_app_mode', mode);
+    } catch {}
+  }, []);
+
+  const toggleAppMode = useCallback(() => {
+    setAppModeState((prev) => {
+      const next = prev === 'launcher' ? 'web' : 'launcher';
+      try {
+        localStorage.setItem('agora_app_mode', next);
+      } catch {}
+      return next;
+    });
+  }, []);
   const [selectedModelId, setSelectedModelId] = useState<string>('deepseek-r1');
   const [selectedCreatorId, setSelectedCreatorId] = useState<string>('c3');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -1083,6 +1110,9 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         regenerateApiKey,
 
         // Navigation & Core
+        appMode,
+        setAppMode,
+        toggleAppMode,
         setView,
         setSelectedModelId,
         setSelectedCreatorId,

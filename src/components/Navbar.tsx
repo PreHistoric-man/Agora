@@ -16,7 +16,8 @@ import {
   Server,
   Zap,
   ChevronDown,
-  Box
+  Box,
+  Monitor
 } from 'lucide-react';
 import { UserProfileModal } from './UserProfileModal';
 
@@ -24,6 +25,7 @@ export const Navbar: React.FC = () => {
   const {
     currentView,
     setView,
+    toggleAppMode,
     models,
     libraryItems,
     cart,
@@ -179,6 +181,16 @@ export const Navbar: React.FC = () => {
 
           {/* Right Side: Cart, Wishlist, Notifications & User */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* Switch to Desktop Launcher */}
+            <button
+              onClick={() => toggleAppMode()}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-display text-xs font-bold bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-all cursor-pointer shadow-sm shadow-cyan-500/10"
+              title="Open Agora Desktop Launcher"
+            >
+              <Monitor size={14} className="text-cyan-400" />
+              <span>Desktop Launcher</span>
+            </button>
+
             {/* API Access Cart Button */}
             <button
               onClick={() => setView('cart')}

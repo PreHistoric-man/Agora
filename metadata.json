@@ -1,6 +1,6 @@
 {
   "name": "Agora",
-  "description": "ModalHub AI Model Marketplace & Deployment Engine: Steam-style library, AWS cross-account IAM role verification, and multi-provider model deployments.",
+  "description": "Agora AI Model Marketplace & Desktop Launcher: Steam-style desktop companion, library synchronization, multi-provider model deployments, and Tauri 2 native architecture.",
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]
