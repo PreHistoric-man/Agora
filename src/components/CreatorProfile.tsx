@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ModelTags } from './ModelTags';
-import { CheckCircle2, UserPlus, Star, Download } from 'lucide-react';
+import { CheckCircle2, UserPlus, Star, Zap } from 'lucide-react';
 
 export const CreatorProfile: React.FC = () => {
   const {
@@ -144,9 +144,9 @@ export const CreatorProfile: React.FC = () => {
                   </p>
 
                   <div className="border-t border-white/5 pt-3 mt-auto flex items-center justify-between text-xs text-slate-500">
-                    <div className="flex items-center gap-1">
-                      <Download size={12} />
-                      {(m.installCount / 1000).toFixed(0)}k
+                    <div className="flex items-center gap-1 font-mono text-[10px] text-cyan-400">
+                      <Zap size={11} />
+                      {(m.apiCallsCount / 1000000).toFixed(1)}M queries
                     </div>
                     <div className="flex items-center gap-0.5 text-yellow-400 font-bold">
                       <Star size={12} fill="currentColor" />

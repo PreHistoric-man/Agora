@@ -15,3 +15,10 @@ export interface AuthErrorState {
 }
 
 export type AuthMode = 'login' | 'register' | 'forgot-password';
+
+export interface ResetPasswordOtpResult {
+  success: boolean;
+  error?: string;
+  isDemo?: boolean;
+  demoOtp?: string;
+}

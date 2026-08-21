@@ -13,30 +13,64 @@ export interface SystemRequirements {
 export interface Model {
   id: string;
   name: string;
+  provider: string; // e.g. "OpenAI", "Anthropic", "DeepSeek", "Alibaba Cloud", "Meta", "Google", "Mistral AI", "Black Forest Labs", "ElevenLabs"
+  providerLogo: string; // Emoji or short badge
   creatorId: string;
-  description: string;
+  description: string; // Short 1-sentence description
   longDescription: string;
   category: 'Reasoning' | 'Coding' | 'Image' | 'Video' | 'Audio' | 'Vision' | 'Writing' | 'Agents' | 'Speech' | 'Science';
   tags: string[];
+  
+  // Performance & Benchmarks (0-100 scale)
+  overallScore: number;
+  codingScore: number;
+  reasoningScore: number;
+  mathScore: number;
+  visionScore: number;
+  speedTokensPerSec: number; // e.g. 110 tok/s
+  latencyMs: number; // Time to first token in ms
+  
+  // Context & Architecture
+  contextWindow: string; // e.g. "128K tokens"
+  contextWindowTokens: number; // e.g. 128000
+  parameters?: string; // e.g. "671B (37B active)"
+  
+  // API Token Pricing (USD per 1 Million Tokens)
+  inputPricePerMillion: number; // e.g. 0.14 for $0.14 / 1M tokens
+  outputPricePerMillion: number; // e.g. 0.56 for $0.56 / 1M tokens
+  cachedInputPricePerMillion?: number; // e.g. 0.07
+  batchDiscountPercent?: number; // e.g. 50%
+  
+  // License & Open-Source Status
+  isOpenSource: boolean; // true = Open Weights, false = Proprietary API
+  license: string; // e.g. "Apache 2.0", "MIT", "Proprietary Commercial", "Llama 3.3 Community"
+  
+  // Access & API Integration
+  accessMethods: string[]; // e.g. ["REST API", "Streaming SSE", "Python SDK", "TypeScript SDK", "OpenAI-Compatible"]
+  endpoint: string; // e.g. "https://api.modalhub.ai/v1/chat/completions"
+  modelEndpointId: string; // e.g. "deepseek-r1"
+  bestFor: string;
+  capabilities: string[];
+  
+  // Example Code Snippets for Developers
+  sampleCurl: string;
+  samplePython: string;
+  sampleNode: string;
+  
+  // Hardware Requirements for self-hosting (if open-weights)
+  hardwareRequirements?: SystemRequirements;
+  
+  // Related / Alternative Models
+  alternatives: string[]; // Model IDs
+  
+  // Market & Community Metadata
   rating: number;
   reviewCount: number;
-  installCount: number;
-  price: number; // in INR, 0 means Free/Dynamic depending on pricingType
-  originalPrice?: number; // Price before discount
-  discountPercent?: number; // e.g. 40, 50, 60
-  discountEndsIn?: string; // e.g. "18h 42m", "Ends in 2d"
-  isDiscounted?: boolean;
-  discountBadge?: string; // e.g. "Flash Deal - 40% OFF"
-  pricingType: 'free' | 'cloud-only' | 'local-free-cloud-paid' | 'paid' | 'subscription';
-  pricingDetails: {
-    local: string;
-    cloud: string;
-    pro?: string;
-  };
+  apiCallsCount: number; // monthly API calls count
   version: string;
   releaseDate: string;
   updatedDate: string;
-  artwork: string; // Tailwind gradient background name or mock image path
+  artwork: string; // Tailwind gradient background
   screenshots: string[];
   trustScore: number;
   trustBreakdown: {
@@ -47,50 +81,10 @@ export interface Model {
     creator: number;
   };
   benchmarks: Benchmark[];
-  systemRequirements: {
-    minimum: SystemRequirements;
-    recommended: SystemRequirements;
-  };
-  installed: boolean;
-  owned?: boolean;
+  
+  // App state helpers
   wishlisted: boolean;
-  sizeOnDisk: string; // e.g. "12.8 GB"
-  hardwareStatus?: string; // e.g., "Ready"
 }
-
-export const MODEL_TAG_GROUPS: Record<string, string[]> = {
-  'Text / Language': [
-    'Text Generation', 'Text Classification', 'Token Classification', 'Question Answering',
-    'Summarization', 'Translation', 'Fill Mask', 'Zero-Shot Classification',
-    'Sentence Similarity', 'Feature Extraction', 'Text-to-Text Generation', 'Chat Completion', 'Ranking'
-  ],
-  'Image / Computer Vision': [
-    'Image Classification', 'Image Segmentation', 'Object Detection', 'Image-to-Image',
-    'Image-to-Text', 'Text-to-Image', 'Zero-Shot Image Classification', 'Zero-Shot Object Detection'
-  ],
-  Video: ['Text-to-Video', 'Image-to-Video', 'Video Classification', 'Video-to-Text'],
-  'Audio / Speech': [
-    'Audio Classification', 'Automatic Speech Recognition', 'Text-to-Speech', 'Audio-to-Audio',
-    'Text-to-Audio', 'Audio-to-Text', 'Zero-Shot Audio Classification'
-  ],
-  Multimodal: [
-    'Image-Text-to-Text', 'Visual Question Answering', 'Document Question Answering',
-    'Any-to-Any', 'Image-Text-to-Image'
-  ],
-  Tabular: ['Tabular Classification', 'Tabular Regression'],
-  'Embeddings / Retrieval': ['Feature Extraction', 'Sentence Similarity', 'Ranking'],
-  'Specialized NLP': [
-    'Language Modeling', 'Masked Language Modeling', 'Question Answering', 'Conversational', 'Text2Text Generation'
-  ],
-  'Generative / Creative': [
-    'Text-to-Image', 'Text-to-Video', 'Text-to-Speech', 'Text-to-Audio',
-    'Image-to-Image', 'Image-to-Video', 'Audio-to-Audio'
-  ],
-  'Other / Specialized': [
-    'Reinforcement Learning', 'Graph Machine Learning', 'Robotics', 'Time Series',
-    'Geospatial', 'Tabular'
-  ]
-};
 
 export interface Creator {
   id: string;
@@ -101,7 +95,7 @@ export interface Creator {
   modelCount: number;
   verified: boolean;
   bio: string;
-  earnings: string; // in INR format, e.g. "₹8.4L"
+  earnings: string;
 }
 
 export interface CommunityPost {
@@ -133,1690 +127,1374 @@ export interface WorkshopItem {
   artwork: string;
 }
 
-// 10 Mock Creators
+// 10 Mock Providers & Creators
 export const mockCreators: Creator[] = [
   {
     id: 'c1',
-    name: 'NeuralForge',
-    avatar: '🎨',
-    followers: 42300,
-    installs: 1200000,
-    modelCount: 4,
+    name: 'OpenAI',
+    avatar: '🌐',
+    followers: 840000,
+    installs: 45000000,
+    modelCount: 6,
     verified: true,
-    bio: 'Building open and accessible AI tools for digital artists, creators, and visual professionals.',
-    earnings: '₹8.4L'
+    bio: 'Pioneering artificial general intelligence with industry-standard frontier models and API endpoints.',
+    earnings: '$120M'
   },
   {
     id: 'c2',
-    name: 'CodeSmiths',
-    avatar: '💻',
-    followers: 89000,
-    installs: 2100000,
-    modelCount: 3,
+    name: 'Anthropic',
+    avatar: ' Claude',
+    followers: 650000,
+    installs: 38000000,
+    modelCount: 4,
     verified: true,
-    bio: 'Pioneering local-first, highly-optimized developer models that run efficiently on consumer GPUs.',
-    earnings: '₹14.2L'
+    bio: 'AI research and safety company focused on developing helpful, honest, and harmless SOTA systems.',
+    earnings: '$95M'
   },
   {
     id: 'c3',
-    name: 'VisionLabs',
-    avatar: '👁️',
-    followers: 51000,
-    installs: 780000,
-    modelCount: 2,
+    name: 'DeepSeek',
+    avatar: '🐋',
+    followers: 920000,
+    installs: 52000000,
+    modelCount: 5,
     verified: true,
-    bio: 'Next-generation multimodal reasoning and complex spatial-visual recognition networks.',
-    earnings: '₹5.6L'
+    bio: 'Revolutionizing reasoning and efficiency with open-weights Mixture-of-Experts architectures.',
+    earnings: '$45M'
   },
   {
     id: 'c4',
-    name: 'DeepMindset',
-    avatar: '🧠',
-    followers: 120000,
-    installs: 1800000,
-    modelCount: 3,
+    name: 'Alibaba Cloud (Qwen)',
+    avatar: '⚡',
+    followers: 430000,
+    installs: 29000000,
+    modelCount: 5,
     verified: true,
-    bio: 'SOTA reasoning, logical extraction, and advanced mathematics orchestration systems.',
-    earnings: '₹22.5L'
+    bio: 'Leading multilingual and code-specialized transformer models engineered for high-throughput enterprise scale.',
+    earnings: '$32M'
   },
   {
     id: 'c5',
-    name: 'SynthAudio',
-    avatar: '🎵',
-    followers: 28000,
-    installs: 450000,
-    modelCount: 3,
-    verified: false,
-    bio: 'Generative musicianship, synthetic ambient design, and hyper-realistic multi-instrument output.',
-    earnings: '₹2.1L'
+    name: 'Meta AI',
+    avatar: '🦙',
+    followers: 890000,
+    installs: 61000000,
+    modelCount: 4,
+    verified: true,
+    bio: 'Democratizing open-source research and high-performance foundation models worldwide.',
+    earnings: 'Open Access'
   },
   {
     id: 'c6',
-    name: 'Speechify',
-    avatar: '🔊',
-    followers: 34000,
-    installs: 640000,
-    modelCount: 2,
+    name: 'Google DeepMind',
+    avatar: '✨',
+    followers: 720000,
+    installs: 41000000,
+    modelCount: 5,
     verified: true,
-    bio: 'Ultra-low latency text-to-speech and emotional voice conversion for games and audiobooks.',
-    earnings: '₹3.9L'
+    bio: 'Pushing boundaries in long-context comprehension, multimodal perception, and fast inference.',
+    earnings: '$88M'
   },
   {
     id: 'c7',
-    name: 'LangArchitects',
-    avatar: '✍️',
-    followers: 45000,
-    installs: 920000,
-    modelCount: 2,
+    name: 'Mistral AI',
+    avatar: '🌪️',
+    followers: 380000,
+    installs: 22000000,
+    modelCount: 4,
     verified: true,
-    bio: 'Empowering software agents and creative writing loops with optimized context retrieval.',
-    earnings: '₹7.8L'
+    bio: 'European frontier AI company building lightweight, fast, and highly customizable enterprise models.',
+    earnings: '$28M'
   },
   {
     id: 'c8',
-    name: 'MotionVids',
-    avatar: '🎬',
-    followers: 67000,
-    installs: 890000,
-    modelCount: 2,
+    name: 'Black Forest Labs',
+    avatar: '🎨',
+    followers: 290000,
+    installs: 14000000,
+    modelCount: 3,
     verified: true,
-    bio: 'Pushing the frontiers of physics-guided diffusion systems for cinematic video production.',
-    earnings: '₹18.9L'
+    bio: 'Creators of the FLUX family of cutting-edge text-to-image and visual diffusion foundation models.',
+    earnings: '$18M'
   },
   {
     id: 'c9',
-    name: 'PromptCrafters',
-    avatar: '🤖',
-    followers: 19000,
-    installs: 210000,
-    modelCount: 1,
-    verified: false,
-    bio: 'Curation and fine-tuning of narrative structures and story-guided dialog systems.',
-    earnings: '₹0.9L'
+    name: 'ElevenLabs',
+    avatar: '🎙️',
+    followers: 310000,
+    installs: 19000000,
+    modelCount: 2,
+    verified: true,
+    bio: 'Industry gold standard for hyper-realistic speech synthesis, voice cloning, and audio AI APIs.',
+    earnings: '$35M'
   },
   {
     id: 'c10',
     name: 'BioGen AI',
     avatar: '🧬',
-    followers: 73000,
-    installs: 320000,
+    followers: 120000,
+    installs: 3200000,
     modelCount: 2,
     verified: true,
-    bio: 'Academic-grade transformer systems trained on structural biology, chemical bonds, and genomics.',
-    earnings: '₹25.0L'
+    bio: 'Specialized biomedical transformers trained on molecular docking, gene expression, and clinical literature.',
+    earnings: '$8M'
   }
 ];
 
-// 20 Mock AI Models
+// 20 High-Quality Mock AI Model APIs
 export const mockModels: Model[] = [
   {
-    id: 'pixelforge-xl',
-    name: 'PixelForge XL',
-    creatorId: 'c1',
-    description: 'Photorealistic image generation model for creators and professionals.',
-    longDescription: 'PixelForge XL is a state-of-the-art latent diffusion model engineered to output premium high-fidelity artwork, photorealistic product placements, and complex text renderings. Optimized to read fine instructions, it supports local inference and image-to-image blending out-of-the-box.',
-    category: 'Image',
-    tags: ['DIFFUSION', 'PHOTOREALISM', 'IMAGE-TO-IMAGE', 'PREMIUM'],
-    rating: 4.7,
-    reviewCount: 4280,
-    installCount: 842000,
-    price: 299,
-    originalPrice: 499,
-    discountPercent: 40,
-    isDiscounted: true,
-    discountEndsIn: '18h 42m',
-    discountBadge: '⚡ Flash Deal - 40% OFF',
-    pricingType: 'local-free-cloud-paid',
-    pricingDetails: {
-      local: 'Free',
-      cloud: '₹0.08 / generation',
-      pro: '₹799 / month'
+    id: 'deepseek-r1',
+    name: 'DeepSeek-R1',
+    provider: 'DeepSeek',
+    providerLogo: '🐋',
+    creatorId: 'c3',
+    description: 'SOTA open-weights reasoning model with chain-of-thought verification and competitive math performance.',
+    longDescription: 'DeepSeek-R1 achieves state-of-the-art reasoning, math, and coding performance comparable to leading closed models. Leveraging pure reinforcement learning with multi-stage cold start data, R1 provides transparent step-by-step thinking traces and cost-effective inference.',
+    category: 'Reasoning',
+    tags: ['REASONING', 'OPEN WEIGHTS', 'CHAIN OF THOUGHT', 'CHEAP TOKENS', 'MATH'],
+    overallScore: 98.2,
+    codingScore: 96.5,
+    reasoningScore: 98.8,
+    mathScore: 97.4,
+    visionScore: 0,
+    speedTokensPerSec: 68,
+    latencyMs: 38,
+    contextWindow: '128K tokens',
+    contextWindowTokens: 128000,
+    parameters: '671B MoE (37B active)',
+    inputPricePerMillion: 0.14,
+    outputPricePerMillion: 0.55,
+    cachedInputPricePerMillion: 0.07,
+    batchDiscountPercent: 50,
+    isOpenSource: true,
+    license: 'MIT License (Fully Open)',
+    accessMethods: ['REST API', 'Streaming SSE', 'Python SDK', 'TypeScript SDK', 'OpenAI-Compatible'],
+    endpoint: 'https://api.modalhub.ai/v1/chat/completions',
+    modelEndpointId: 'deepseek-r1',
+    bestFor: 'Deep mathematical proofs, complex algorithmic debugging, scientific hypothesis generation, and multi-step logic analysis.',
+    capabilities: ['Chain-of-Thought Reasoning', 'Structured JSON Mode', 'Function Calling', 'Markdown Streaming', 'Self-Verification'],
+    sampleCurl: `curl https://api.modalhub.ai/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer $MODALHUB_API_KEY" \\
+  -d '{
+    "model": "deepseek-r1",
+    "messages": [{"role": "user", "content": "Prove the infinite prime theorem with step-by-step reasoning."}],
+    "temperature": 0.6,
+    "stream": true
+  }'`,
+    samplePython: `from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://api.modalhub.ai/v1",
+    api_key="your_modalhub_api_key_here"
+)
+
+response = client.chat.completions.create(
+    model="deepseek-r1",
+    messages=[{"role": "user", "content": "Write a scalable lock-free queue in Rust with benchmarks."}],
+    temperature=0.6
+)
+print(response.choices[0].message.content)`,
+    sampleNode: `import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "https://api.modalhub.ai/v1",
+  apiKey: process.env.MODALHUB_API_KEY,
+});
+
+const response = await client.chat.completions.create({
+  model: "deepseek-r1",
+  messages: [{ role: "user", content: "Optimize this SQL query for 100M rows." }],
+});
+console.log(response.choices[0].message.content);`,
+    hardwareRequirements: {
+      gpu: '4x NVIDIA H100 80GB (FP8)',
+      vram: '320 GB',
+      ram: '512 GB',
+      storage: '720 GB NVMe'
     },
-    version: 'v2.4.0',
-    releaseDate: '2025-11-12',
-    updatedDate: '2026-07-28',
-    artwork: 'from-purple-800 to-indigo-900',
+    alternatives: ['gpt-4o', 'claude-3-5-sonnet', 'qwen-2-5-coder-32b'],
+    rating: 4.9,
+    reviewCount: 24500,
+    apiCallsCount: 89000000,
+    version: 'v1.0.0',
+    releaseDate: '2025-01-20',
+    updatedDate: '2026-02-15',
+    artwork: 'from-blue-900 via-indigo-900 to-slate-950',
     screenshots: [
       'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1544256718-3bcf237f3974?w=800&auto=format&fit=crop&q=80'
+    ],
+    trustScore: 99,
+    trustBreakdown: { performance: 99, community: 98, documentation: 96, reliability: 98, creator: 99 },
+    benchmarks: [
+      { name: 'AIME 2024 (Math)', score: 79.8 },
+      { name: 'MATH-500', score: 97.3 },
+      { name: 'Codeforces Rating', score: 96.3 },
+      { name: 'SWE-bench Verified', score: 49.2 }
+    ],
+    wishlisted: false
+  },
+  {
+    id: 'gpt-4o',
+    name: 'GPT-4o',
+    provider: 'OpenAI',
+    providerLogo: '🌐',
+    creatorId: 'c1',
+    description: 'Flagship omni-modal foundation model combining fast reasoning, vision, and multilingual fluency.',
+    longDescription: 'GPT-4o is OpenAI’s premier flagship multimodal model designed for real-time responsiveness across text, vision, and audio. It offers high precision across agentic workflows, structured data extraction, and general software development.',
+    category: 'Reasoning',
+    tags: ['MULTIMODAL', 'PROPRIETARY', 'FAST', 'VISION', 'TOOL USE'],
+    overallScore: 97.6,
+    codingScore: 94.8,
+    reasoningScore: 96.2,
+    mathScore: 92.5,
+    visionScore: 95.8,
+    speedTokensPerSec: 115,
+    latencyMs: 24,
+    contextWindow: '128K tokens',
+    contextWindowTokens: 128000,
+    parameters: 'Proprietary Frontier',
+    inputPricePerMillion: 2.50,
+    outputPricePerMillion: 10.00,
+    cachedInputPricePerMillion: 1.25,
+    batchDiscountPercent: 50,
+    isOpenSource: false,
+    license: 'OpenAI Commercial API License',
+    accessMethods: ['REST API', 'WebSockets', 'Python SDK', 'Node.js SDK', 'OpenAI Compatible'],
+    endpoint: 'https://api.modalhub.ai/v1/chat/completions',
+    modelEndpointId: 'gpt-4o',
+    bestFor: 'Enterprise customer support, real-time visual document inspection, complex JSON schemas, and interactive agents.',
+    capabilities: ['Native Multimodal Vision', 'Function / Tool Calling', 'Strict JSON Schema Mode', 'High Concurrency', 'Predictive Outputs'],
+    sampleCurl: `curl https://api.modalhub.ai/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer $MODALHUB_API_KEY" \\
+  -d '{
+    "model": "gpt-4o",
+    "messages": [
+      {"role": "system", "content": "You are a senior fullstack engineer."},
+      {"role": "user", "content": "Generate a resilient retry exponential backoff utility in TypeScript."}
+    ],
+    "response_format": {"type": "json_object"}
+  }'`,
+    samplePython: `from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://api.modalhub.ai/v1",
+    api_key="your_modalhub_api_key_here"
+)
+
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Extract structured customer records from this invoice image URL."}]
+)
+print(response.choices[0].message.content)`,
+    sampleNode: `import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "https://api.modalhub.ai/v1",
+  apiKey: process.env.MODALHUB_API_KEY,
+});
+
+const res = await client.chat.completions.create({
+  model: "gpt-4o",
+  messages: [{ role: "user", content: "Build a Next.js 15 server action with Zod validation." }],
+});
+console.log(res.choices[0].message.content);`,
+    alternatives: ['claude-3-5-sonnet', 'deepseek-r1', 'gemini-1-5-pro'],
+    rating: 4.8,
+    reviewCount: 48900,
+    apiCallsCount: 154000000,
+    version: '2024-11-20',
+    releaseDate: '2024-05-13',
+    updatedDate: '2026-01-10',
+    artwork: 'from-emerald-950 via-teal-900 to-slate-950',
+    screenshots: [
+      'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=800&auto=format&fit=crop&q=80'
+    ],
+    trustScore: 98,
+    trustBreakdown: { performance: 98, community: 97, documentation: 99, reliability: 99, creator: 98 },
+    benchmarks: [
+      { name: 'MMLU Pro', score: 88.6 },
+      { name: 'HumanEval (Coding)', score: 90.2 },
+      { name: 'MMMU (Vision)', score: 69.1 },
+      { name: 'MATH', score: 76.6 }
+    ],
+    wishlisted: true
+  },
+  {
+    id: 'claude-3-5-sonnet',
+    name: 'Claude 3.5 Sonnet',
+    provider: 'Anthropic',
+    providerLogo: ' Claude',
+    creatorId: 'c2',
+    description: 'Gold standard for software engineering, autonomous coding agents, nuanced writing, and visual reasoning.',
+    longDescription: 'Claude 3.5 Sonnet elevates the industry benchmark for coding and reasoning. It operates with exceptional architectural judgment, understands intricate multi-file repositories, and delivers natural, human-grade prose with high safety standards.',
+    category: 'Coding',
+    tags: ['CODING', 'AGENTS', 'PROPRIETARY', '200K CONTEXT', 'VISION'],
+    overallScore: 98.4,
+    codingScore: 98.9,
+    reasoningScore: 97.1,
+    mathScore: 91.8,
+    visionScore: 94.7,
+    speedTokensPerSec: 85,
+    latencyMs: 32,
+    contextWindow: '200K tokens',
+    contextWindowTokens: 200000,
+    parameters: 'Proprietary Frontier',
+    inputPricePerMillion: 3.00,
+    outputPricePerMillion: 15.00,
+    cachedInputPricePerMillion: 0.30,
+    batchDiscountPercent: 50,
+    isOpenSource: false,
+    license: 'Anthropic Commercial API License',
+    accessMethods: ['REST API', 'Streaming SSE', 'Anthropic SDK', 'OpenAI Compatible Gateway'],
+    endpoint: 'https://api.modalhub.ai/v1/chat/completions',
+    modelEndpointId: 'claude-3-5-sonnet',
+    bestFor: 'End-to-end software engineering agents (SWE-bench), architectural refactoring, contract audits, and nuanced long-form analysis.',
+    capabilities: ['Artifacts Rendering', 'Prompt Caching (90% discount)', 'Computer Use API', '200K Context Window', 'Tool Execution'],
+    sampleCurl: `curl https://api.modalhub.ai/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer $MODALHUB_API_KEY" \\
+  -d '{
+    "model": "claude-3-5-sonnet",
+    "messages": [{"role": "user", "content": "Refactor this distributed microservice transaction to use the Saga pattern."}],
+    "max_tokens": 4096
+  }'`,
+    samplePython: `from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://api.modalhub.ai/v1",
+    api_key="your_modalhub_api_key_here"
+)
+
+response = client.chat.completions.create(
+    model="claude-3-5-sonnet",
+    messages=[{"role": "user", "content": "Audit this smart contract for reentrancy vulnerabilities."}]
+)
+print(response.choices[0].message.content)`,
+    sampleNode: `import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "https://api.modalhub.ai/v1",
+  apiKey: process.env.MODALHUB_API_KEY,
+});
+
+const result = await client.chat.completions.create({
+  model: "claude-3-5-sonnet",
+  messages: [{ role: "user", content: "Write a React hook for WebRTC real-time audio streams." }],
+});
+console.log(result.choices[0].message.content);`,
+    alternatives: ['deepseek-r1', 'gpt-4o', 'qwen-2-5-coder-32b'],
+    rating: 4.9,
+    reviewCount: 39400,
+    apiCallsCount: 128000000,
+    version: '20241022',
+    releaseDate: '2024-06-20',
+    updatedDate: '2025-10-22',
+    artwork: 'from-amber-950 via-orange-950 to-slate-950',
+    screenshots: [
+      'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&auto=format&fit=crop&q=80'
+    ],
+    trustScore: 99,
+    trustBreakdown: { performance: 99, community: 99, documentation: 98, reliability: 99, creator: 99 },
+    benchmarks: [
+      { name: 'SWE-bench Verified', score: 49.0 },
+      { name: 'HumanEval (0-shot)', score: 93.7 },
+      { name: 'GPQA Diamond (Reasoning)', score: 65.0 },
+      { name: 'MGSM (Multilingual Math)', score: 91.6 }
+    ],
+    wishlisted: true
+  },
+  {
+    id: 'qwen-2-5-coder-32b',
+    name: 'Qwen 2.5 Coder 32B',
+    provider: 'Alibaba Cloud',
+    providerLogo: '⚡',
+    creatorId: 'c4',
+    description: 'Premier open-source code generation model rivaling GPT-4o with ultra-low token cost and 128K context.',
+    longDescription: 'Qwen 2.5 Coder 32B Instruct is trained on over 5.5 trillion tokens of code, math, and synthetic reasoning. It features full language support across 92 programming languages, superior code completion, bug detection, and test suite generation.',
+    category: 'Coding',
+    tags: ['CODING', 'OPEN WEIGHTS', 'APACHE 2.0', '128K CONTEXT', 'CHEAP TOKENS'],
+    overallScore: 96.1,
+    codingScore: 97.4,
+    reasoningScore: 93.2,
+    mathScore: 91.0,
+    visionScore: 0,
+    speedTokensPerSec: 135,
+    latencyMs: 19,
+    contextWindow: '128K tokens',
+    contextWindowTokens: 128000,
+    parameters: '32.5 Billion Dense',
+    inputPricePerMillion: 0.15,
+    outputPricePerMillion: 0.60,
+    cachedInputPricePerMillion: 0.05,
+    batchDiscountPercent: 40,
+    isOpenSource: true,
+    license: 'Apache 2.0 (Commercial Permissive)',
+    accessMethods: ['REST API', 'Streaming SSE', 'vLLM', 'Ollama', 'OpenAI Compatible'],
+    endpoint: 'https://api.modalhub.ai/v1/chat/completions',
+    modelEndpointId: 'qwen-2-5-coder-32b',
+    bestFor: 'High-throughput code completions in IDEs, automated unit testing pipelines, PR code reviews, and SQL query synthesis.',
+    capabilities: ['92 Programming Languages', 'Repository-Level Comprehension', 'Fill-In-The-Middle (FIM)', 'Structured JSON Mode', 'vLLM Fast Serving'],
+    sampleCurl: `curl https://api.modalhub.ai/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer $MODALHUB_API_KEY" \\
+  -d '{
+    "model": "qwen-2-5-coder-32b",
+    "messages": [{"role": "user", "content": "Write a complete CRUD service in Go with clean architecture and SQLite."}]
+  }'`,
+    samplePython: `from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://api.modalhub.ai/v1",
+    api_key="your_modalhub_api_key_here"
+)
+
+response = client.chat.completions.create(
+    model="qwen-2-5-coder-32b",
+    messages=[{"role": "user", "content": "Generate Vitest unit tests for this authentication handler."}]
+)
+print(response.choices[0].message.content)`,
+    sampleNode: `import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "https://api.modalhub.ai/v1",
+  apiKey: process.env.MODALHUB_API_KEY,
+});
+
+const res = await client.chat.completions.create({
+  model: "qwen-2-5-coder-32b",
+  messages: [{ role: "user", content: "Implement a red-black binary search tree in C++20." }],
+});
+console.log(res.choices[0].message.content);`,
+    hardwareRequirements: {
+      gpu: '1x RTX 4090 24GB (4-bit AWQ) or 1x A100 80GB (FP16)',
+      vram: '20 GB (Quantized) / 64 GB (Full)',
+      ram: '32 GB',
+      storage: '65 GB NVMe'
+    },
+    alternatives: ['claude-3-5-sonnet', 'deepseek-r1', 'llama-3-3-70b'],
+    rating: 4.8,
+    reviewCount: 16800,
+    apiCallsCount: 67000000,
+    version: 'v2.5.1',
+    releaseDate: '2024-11-15',
+    updatedDate: '2026-01-20',
+    artwork: 'from-violet-950 via-purple-950 to-slate-950',
+    screenshots: [
+      'https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=800&auto=format&fit=crop&q=80'
+    ],
+    trustScore: 97,
+    trustBreakdown: { performance: 97, community: 98, documentation: 96, reliability: 97, creator: 96 },
+    benchmarks: [
+      { name: 'EvalPlus (Coding)', score: 92.7 },
+      { name: 'SWE-bench Lite', score: 39.8 },
+      { name: 'HumanEval Base', score: 90.2 },
+      { name: 'MBPP Base', score: 86.4 }
+    ],
+    wishlisted: false
+  },
+  {
+    id: 'llama-3-3-70b',
+    name: 'Llama 3.3 70B Instruct',
+    provider: 'Meta AI',
+    providerLogo: '🦙',
+    creatorId: 'c5',
+    description: 'Industry flagship 70B open-weights transformer matching 405B performance at 1/5th the compute.',
+    longDescription: 'Meta Llama 3.3 70B Instruct delivers enterprise-grade language comprehension, deep logical inference, tool use, and multilingual conversation across 8 global languages. It is highly optimized for self-hosting on dual GPU setups or cost-effective cloud serving.',
+    category: 'Reasoning',
+    tags: ['OPEN WEIGHTS', '128K CONTEXT', 'MULTILINGUAL', 'TOOL USE', 'ENTERPRISE'],
+    overallScore: 95.8,
+    codingScore: 91.4,
+    reasoningScore: 95.0,
+    mathScore: 89.6,
+    visionScore: 0,
+    speedTokensPerSec: 92,
+    latencyMs: 26,
+    contextWindow: '128K tokens',
+    contextWindowTokens: 128000,
+    parameters: '70 Billion Dense',
+    inputPricePerMillion: 0.35,
+    outputPricePerMillion: 0.85,
+    cachedInputPricePerMillion: 0.15,
+    batchDiscountPercent: 50,
+    isOpenSource: true,
+    license: 'Llama 3.3 Community License (Free up to 700M MAU)',
+    accessMethods: ['REST API', 'Streaming SSE', 'vLLM', 'TGI', 'OpenAI Compatible'],
+    endpoint: 'https://api.modalhub.ai/v1/chat/completions',
+    modelEndpointId: 'llama-3-3-70b',
+    bestFor: 'General enterprise question-answering, multilingual customer portals, self-hosted corporate knowledge bases, and agent orchestration.',
+    capabilities: ['Function Calling', '128K Context Window', 'Zero-shot Classification', 'JSON Mode', 'Safety Aligned (Llama Guard)'],
+    sampleCurl: `curl https://api.modalhub.ai/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer $MODALHUB_API_KEY" \\
+  -d '{
+    "model": "llama-3-3-70b",
+    "messages": [{"role": "user", "content": "Analyze the financial implications of quantitative tightening on emerging markets."}]
+  }'`,
+    samplePython: `from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://api.modalhub.ai/v1",
+    api_key="your_modalhub_api_key_here"
+)
+
+response = client.chat.completions.create(
+    model="llama-3-3-70b",
+    messages=[{"role": "user", "content": "Summarize this 50-page legal contract into executive risk bullet points."}]
+)
+print(response.choices[0].message.content)`,
+    sampleNode: `import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "https://api.modalhub.ai/v1",
+  apiKey: process.env.MODALHUB_API_KEY,
+});
+
+const res = await client.chat.completions.create({
+  model: "llama-3-3-70b",
+  messages: [{ role: "user", content: "Generate an end-to-end Terraform deployment script for AWS EKS." }],
+});
+console.log(res.choices[0].message.content);`,
+    hardwareRequirements: {
+      gpu: '2x RTX 3090 / 4090 24GB (4-bit AWQ) or 1x H100 80GB (FP8)',
+      vram: '48 GB (Quantized) / 140 GB (FP16)',
+      ram: '64 GB',
+      storage: '150 GB NVMe'
+    },
+    alternatives: ['deepseek-r1', 'qwen-2-5-coder-32b', 'mistral-large-2'],
+    rating: 4.8,
+    reviewCount: 31200,
+    apiCallsCount: 94000000,
+    version: 'v3.3.0',
+    releaseDate: '2024-12-06',
+    updatedDate: '2026-01-15',
+    artwork: 'from-blue-950 via-cyan-950 to-slate-950',
+    screenshots: [
+      'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80'
+    ],
+    trustScore: 98,
+    trustBreakdown: { performance: 97, community: 99, documentation: 98, reliability: 98, creator: 99 },
+    benchmarks: [
+      { name: 'MMLU Benchmark', score: 88.6 },
+      { name: 'MATH (Hard)', score: 73.1 },
+      { name: 'GPQA Diamond', score: 51.2 },
+      { name: 'HumanEval', score: 82.3 }
+    ],
+    wishlisted: false
+  },
+  {
+    id: 'gemini-1-5-pro',
+    name: 'Gemini 1.5 Pro',
+    provider: 'Google DeepMind',
+    providerLogo: '✨',
+    creatorId: 'c6',
+    description: 'Groundbreaking 2-million token context window model with native audio, video, and cross-modal reasoning.',
+    longDescription: 'Gemini 1.5 Pro sets the record for ultra-long context understanding, handling up to 2 million tokens (1 hour of video, 11 hours of audio, or 30,000 lines of code) in a single prompt with 99.7% needle-in-a-haystack retrieval accuracy.',
+    category: 'Vision',
+    tags: ['2M CONTEXT', 'MULTIMODAL', 'AUDIO', 'VIDEO', 'PROPRIETARY'],
+    overallScore: 97.1,
+    codingScore: 92.5,
+    reasoningScore: 96.0,
+    mathScore: 90.4,
+    visionScore: 98.2,
+    speedTokensPerSec: 72,
+    latencyMs: 45,
+    contextWindow: '2M tokens',
+    contextWindowTokens: 2000000,
+    parameters: 'Proprietary Sparse MoE',
+    inputPricePerMillion: 1.25,
+    outputPricePerMillion: 5.00,
+    cachedInputPricePerMillion: 0.31,
+    batchDiscountPercent: 50,
+    isOpenSource: false,
+    license: 'Google AI Studio Commercial Terms',
+    accessMethods: ['REST API', 'Google GenAI SDK', 'Python SDK', 'Node.js SDK', 'OpenAI Compatible'],
+    endpoint: 'https://api.modalhub.ai/v1/chat/completions',
+    modelEndpointId: 'gemini-1-5-pro',
+    bestFor: 'Analyzing hours of video footage, querying entire codebases simultaneously, auditing hundreds of PDF books, and audio transcription reasoning.',
+    capabilities: ['2M Token Context', 'Native Video Ingestion', 'Native Audio Processing', 'System Instructions', 'Grounding with Google Search'],
+    sampleCurl: `curl https://api.modalhub.ai/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer $MODALHUB_API_KEY" \\
+  -d '{
+    "model": "gemini-1-5-pro",
+    "messages": [
+      {"role": "user", "content": "Find all security vulnerabilities across these 40 source code files attached in context."}
+    ]
+  }'`,
+    samplePython: `from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://api.modalhub.ai/v1",
+    api_key="your_modalhub_api_key_here"
+)
+
+response = client.chat.completions.create(
+    model="gemini-1-5-pro",
+    messages=[{"role": "user", "content": "Transcribe and analyze this 45-minute earnings call audio recording."}]
+)
+print(response.choices[0].message.content)`,
+    sampleNode: `import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "https://api.modalhub.ai/v1",
+  apiKey: process.env.MODALHUB_API_KEY,
+});
+
+const res = await client.chat.completions.create({
+  model: "gemini-1-5-pro",
+  messages: [{ role: "user", content: "Summarize this 500-page regulatory compliance filing with timeline citations." }],
+});
+console.log(res.choices[0].message.content);`,
+    alternatives: ['gpt-4o', 'claude-3-5-sonnet', 'neuralvision-4'],
+    rating: 4.8,
+    reviewCount: 28700,
+    apiCallsCount: 82000000,
+    version: '002-exp',
+    releaseDate: '2024-04-15',
+    updatedDate: '2026-01-28',
+    artwork: 'from-sky-950 via-indigo-950 to-slate-950',
+    screenshots: [
+      'https://images.unsplash.com/photo-1507668077129-56e32842fceb?w=800&auto=format&fit=crop&q=80'
+    ],
+    trustScore: 98,
+    trustBreakdown: { performance: 98, community: 97, documentation: 99, reliability: 98, creator: 98 },
+    benchmarks: [
+      { name: 'Needle in Haystack (2M Context)', score: 99.7 },
+      { name: 'VideoQA Benchmark', score: 84.1 },
+      { name: 'MMLU Pro', score: 85.9 },
+      { name: 'MathVista', score: 63.9 }
+    ],
+    wishlisted: false
+  },
+  {
+    id: 'mistral-large-2',
+    name: 'Mistral Large 2',
+    provider: 'Mistral AI',
+    providerLogo: '🌪️',
+    creatorId: 'c7',
+    description: 'European flagship 123B model with multi-lingual reasoning, precise tool calling, and 128K context.',
+    longDescription: 'Mistral Large 2 (123B) is engineered for top-tier reasoning, mathematics, coding, and multilingual support across dozens of languages. It is known for concise, non-verbose responses and strict adherence to JSON and structured schema outputs.',
+    category: 'Reasoning',
+    tags: ['128K CONTEXT', 'PROPRIETARY', 'TOOL CALLING', 'MULTILINGUAL', 'CONCISE'],
+    overallScore: 95.4,
+    codingScore: 93.0,
+    reasoningScore: 95.2,
+    mathScore: 89.1,
+    visionScore: 0,
+    speedTokensPerSec: 105,
+    latencyMs: 22,
+    contextWindow: '128K tokens',
+    contextWindowTokens: 128000,
+    parameters: '123 Billion Dense',
+    inputPricePerMillion: 2.00,
+    outputPricePerMillion: 6.00,
+    cachedInputPricePerMillion: 0.50,
+    batchDiscountPercent: 50,
+    isOpenSource: false,
+    license: 'Mistral Commercial API Terms',
+    accessMethods: ['REST API', 'Streaming SSE', 'Mistral SDK', 'OpenAI Compatible'],
+    endpoint: 'https://api.modalhub.ai/v1/chat/completions',
+    modelEndpointId: 'mistral-large-2',
+    bestFor: 'Enterprise multilingual workflows (French, German, Spanish, Italian), strict JSON schema extraction, and fast automated agents.',
+    capabilities: ['Function Calling with Validation', 'Strict JSON Enforcement', '80+ Languages', 'Low-Latency Responses', 'System Prompt Tuning'],
+    sampleCurl: `curl https://api.modalhub.ai/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer $MODALHUB_API_KEY" \\
+  -d '{
+    "model": "mistral-large-2",
+    "messages": [{"role": "user", "content": "Extract French customer support intents into structured JSON."}],
+    "response_format": {"type": "json_object"}
+  }'`,
+    samplePython: `from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://api.modalhub.ai/v1",
+    api_key="your_modalhub_api_key_here"
+)
+
+response = client.chat.completions.create(
+    model="mistral-large-2",
+    messages=[{"role": "user", "content": "Draft an EU GDPR data processing agreement clause."}]
+)
+print(response.choices[0].message.content)`,
+    sampleNode: `import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "https://api.modalhub.ai/v1",
+  apiKey: process.env.MODALHUB_API_KEY,
+});
+
+const res = await client.chat.completions.create({
+  model: "mistral-large-2",
+  messages: [{ role: "user", content: "Optimize this distributed Kafka partitioner logic." }],
+});
+console.log(res.choices[0].message.content);`,
+    alternatives: ['llama-3-3-70b', 'gpt-4o', 'deepseek-r1'],
+    rating: 4.7,
+    reviewCount: 14200,
+    apiCallsCount: 48000000,
+    version: '2407',
+    releaseDate: '2024-07-24',
+    updatedDate: '2025-11-18',
+    artwork: 'from-orange-950 via-amber-950 to-slate-950',
+    screenshots: [
+      'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop&q=80'
+    ],
+    trustScore: 97,
+    trustBreakdown: { performance: 97, community: 96, documentation: 98, reliability: 98, creator: 97 },
+    benchmarks: [
+      { name: 'MMLU Benchmark', score: 84.0 },
+      { name: 'HumanEval', score: 92.0 },
+      { name: 'MATH', score: 76.6 },
+      { name: 'Multi-lingual MMLU', score: 82.4 }
+    ],
+    wishlisted: false
+  },
+  {
+    id: 'flux-1-pro',
+    name: 'FLUX.1 [pro]',
+    provider: 'Black Forest Labs',
+    providerLogo: '🎨',
+    creatorId: 'c8',
+    description: 'SOTA 12B rectified flow transformer delivering hyper-photorealistic imagery, precise typography, and complex prompts.',
+    longDescription: 'FLUX.1 [pro] is the industry-leading visual foundation model for high-end digital marketing, photorealism, and graphic typography. With unmatched prompt adherence and text rendering in images, it serves professional production pipelines worldwide.',
+    category: 'Image',
+    tags: ['IMAGE GENERATION', 'RECTIFIED FLOW', 'PROPRIETARY', 'PHOTOREALISM', 'TYPOGRAPHY'],
+    overallScore: 98.6,
+    codingScore: 0,
+    reasoningScore: 88.0,
+    mathScore: 0,
+    visionScore: 99.1,
+    speedTokensPerSec: 45, // Seconds per generation: ~3.2s
+    latencyMs: 120,
+    contextWindow: 'Prompt (512 tokens)',
+    contextWindowTokens: 512,
+    parameters: '12 Billion Flow Transformer',
+    inputPricePerMillion: 0.05, // per image $0.05
+    outputPricePerMillion: 0.05,
+    isOpenSource: false,
+    license: 'Black Forest Labs Commercial API Terms',
+    accessMethods: ['REST API (Image Gen)', 'Python SDK', 'Node.js SDK', 'Webhooks'],
+    endpoint: 'https://api.modalhub.ai/v1/images/generations',
+    modelEndpointId: 'flux-1-pro',
+    bestFor: 'High-end advertising imagery, cinematic product mockups, complex typography on packaging, and editorial fashion concepts.',
+    capabilities: ['Flawless Text / Typography in Art', 'Photorealistic Skin & Lighting', 'Complex Multi-Subject Scenes', 'Aspect Ratios from 16:9 to 9:16', 'Seed Reproducibility'],
+    sampleCurl: `curl https://api.modalhub.ai/v1/images/generations \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer $MODALHUB_API_KEY" \\
+  -d '{
+    "model": "flux-1-pro",
+    "prompt": "Cinematic 35mm film photograph of a futuristic cyberpunk cafe in Tokyo with neon sign reading 'AGORA AI', raining night, 8k resolution.",
+    "width": 1024,
+    "height": 768,
+    "steps": 30
+  }'`,
+    samplePython: `import requests
+
+headers = {"Authorization": "Bearer your_modalhub_api_key"}
+payload = {
+    "model": "flux-1-pro",
+    "prompt": "A luxury wristwatch displayed on basalt stone, volumetric water splash, high fashion lighting.",
+    "width": 1024,
+    "height": 1024
+}
+res = requests.post("https://api.modalhub.ai/v1/images/generations", json=payload, headers=headers)
+image_url = res.json()["data"][0]["url"]
+print(f"Generated Image: {image_url}")`,
+    sampleNode: `const response = await fetch("https://api.modalhub.ai/v1/images/generations", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": \`Bearer \${process.env.MODALHUB_API_KEY}\`,
+  },
+  body: JSON.stringify({
+    model: "flux-1-pro",
+    prompt: "Minimalist architectural pavilion in Scandinavian forest, autumn morning mist.",
+  }),
+});
+const data = await response.json();
+console.log("Image URL:", data.data[0].url);`,
+    alternatives: ['pixelforge-xl', 'neuralvision-4'],
+    rating: 4.9,
+    reviewCount: 38200,
+    apiCallsCount: 71000000,
+    version: 'v1.1.0',
+    releaseDate: '2024-08-01',
+    updatedDate: '2026-02-01',
+    artwork: 'from-pink-950 via-rose-950 to-slate-950',
+    screenshots: [
+      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=800&auto=format&fit=crop&q=80'
     ],
-    trustScore: 94,
-    trustBreakdown: {
-      performance: 96,
-      community: 92,
-      documentation: 95,
-      reliability: 94,
-      creator: 93
-    },
+    trustScore: 99,
+    trustBreakdown: { performance: 99, community: 99, documentation: 97, reliability: 99, creator: 99 },
     benchmarks: [
-      { name: 'Image Quality', score: 94.2 },
-      { name: 'Prompt Adherence', score: 91.7 },
-      { name: 'Text Rendering', score: 88.3 },
-      { name: 'Speed (Inference)', score: 87.1 }
+      { name: 'Typography & Spelling Accuracy', score: 98.4 },
+      { name: 'Prompt Fidelity Score', score: 96.7 },
+      { name: 'Photorealism Human Evaluation', score: 99.2 },
+      { name: 'Generation Speed (sec/img)', score: 92.0 }
     ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'RTX 3060 / RX 6600',
-        vram: '8 GB',
-        ram: '16 GB',
-        storage: '12 GB'
-      },
-      recommended: {
-        gpu: 'RTX 4090 / RX 7900 XTX',
-        vram: '24 GB',
-        ram: '32 GB',
-        storage: '20 GB'
-      }
+    wishlisted: true
+  },
+  {
+    id: 'eleven-multilingual-v2',
+    name: 'Eleven Multilingual v2',
+    provider: 'ElevenLabs',
+    providerLogo: '🎙️',
+    creatorId: 'c9',
+    description: 'Gold standard Text-to-Speech API offering 29 languages, emotional intonation, and ultra-low streaming latency.',
+    longDescription: 'Eleven Multilingual v2 generates rich, expressive, emotionally-tuned human speech from raw text. With voice design, instantaneous voice cloning, and sub-150ms websocket streaming, it powers gaming dialogue, AI voice agents, and audiobooks.',
+    category: 'Speech',
+    tags: ['TEXT TO SPEECH', 'VOICE CLONING', 'STREAMING AUDIO', '29 LANGUAGES', 'PROPRIETARY'],
+    overallScore: 98.1,
+    codingScore: 0,
+    reasoningScore: 0,
+    mathScore: 0,
+    visionScore: 0,
+    speedTokensPerSec: 180, // Audio chars/sec
+    latencyMs: 140,
+    contextWindow: '10K characters per request',
+    contextWindowTokens: 2500,
+    parameters: 'Proprietary Diffusion Audio',
+    inputPricePerMillion: 15.00, // $15 / 1M characters
+    outputPricePerMillion: 15.00,
+    isOpenSource: false,
+    license: 'ElevenLabs Commercial API Terms',
+    accessMethods: ['REST API (Audio)', 'WebSocket Streaming', 'Python SDK', 'Node.js SDK'],
+    endpoint: 'https://api.modalhub.ai/v1/audio/speech',
+    modelEndpointId: 'eleven-multilingual-v2',
+    bestFor: 'Real-time conversational voice agents, narrative audiobook generation, multi-language localization, and dynamic NPC game voices.',
+    capabilities: ['29 Natural Languages', 'Emotion & Style Sliders', 'Voice Cloning via 1-minute audio', 'Streaming Audio Chunks (MP3/PCM)', 'Custom Pronunciation Dictionaries'],
+    sampleCurl: `curl https://api.modalhub.ai/v1/audio/speech \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer $MODALHUB_API_KEY" \\
+  -d '{
+    "model": "eleven-multilingual-v2",
+    "input": "Welcome to the future of AI API infrastructure on ModalHub Agora.",
+    "voice": "rachel",
+    "response_format": "mp3"
+  }' --output speech.mp3`,
+    samplePython: `import requests
+
+headers = {
+    "Authorization": "Bearer your_modalhub_api_key",
+    "Content-Type": "application/json"
+}
+data = {
+    "model": "eleven-multilingual-v2",
+    "input": "Welcome to our live voice agent interface.",
+    "voice": "adam"
+}
+res = requests.post("https://api.modalhub.ai/v1/audio/speech", json=data, headers=headers)
+with open("output.mp3", "wb") as f:
+    f.write(res.content)`,
+    sampleNode: `const res = await fetch("https://api.modalhub.ai/v1/audio/speech", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": \`Bearer \${process.env.MODALHUB_API_KEY}\`,
+  },
+  body: JSON.stringify({
+    model: "eleven-multilingual-v2",
+    input: "Streaming real-time voice response.",
+    voice: "rachel",
+  }),
+});
+const audioBuffer = await res.arrayBuffer();`,
+    alternatives: ['whisper-large-v3'],
+    rating: 4.9,
+    reviewCount: 31000,
+    apiCallsCount: 95000000,
+    version: 'v2.1.0',
+    releaseDate: '2024-03-10',
+    updatedDate: '2026-01-18',
+    artwork: 'from-fuchsia-950 via-purple-950 to-slate-950',
+    screenshots: [
+      'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=800&auto=format&fit=crop&q=80'
+    ],
+    trustScore: 99,
+    trustBreakdown: { performance: 99, community: 98, documentation: 99, reliability: 99, creator: 99 },
+    benchmarks: [
+      { name: 'Naturalness Mean Opinion Score (MOS)', score: 97.8 },
+      { name: 'Streaming Time-to-First-Audio (TTFA)', score: 96.2 },
+      { name: 'Cross-lingual Phoneme Match', score: 95.4 },
+      { name: 'Emotion Consistency', score: 94.0 }
+    ],
+    wishlisted: false
+  },
+  {
+    id: 'whisper-large-v3',
+    name: 'Whisper Large v3',
+    provider: 'OpenAI',
+    providerLogo: '🌐',
+    creatorId: 'c1',
+    description: 'SOTA open-weights speech recognition model supporting 100+ languages with automatic punctuation and timestamps.',
+    longDescription: 'Whisper Large v3 is trained on 5 million hours of diverse multilingual audio. It provides robust speech-to-text transcription, translation from 99 languages into English, speaker diarization tags, and millisecond-accurate word timestamps.',
+    category: 'Speech',
+    tags: ['SPEECH TO TEXT', 'OPEN WEIGHTS', 'MIT LICENSE', '100+ LANGUAGES', 'TRANSCRIPTION'],
+    overallScore: 96.5,
+    codingScore: 0,
+    reasoningScore: 0,
+    mathScore: 0,
+    visionScore: 0,
+    speedTokensPerSec: 160,
+    latencyMs: 110,
+    contextWindow: '30s chunking window',
+    contextWindowTokens: 4096,
+    parameters: '1.55 Billion Transformer',
+    inputPricePerMillion: 0.006, // $0.006 per minute ($0.36 / hour)
+    outputPricePerMillion: 0.006,
+    isOpenSource: true,
+    license: 'MIT License (Open Source)',
+    accessMethods: ['REST API (Multipart Audio)', 'Python SDK', 'Node.js SDK', 'Faster-Whisper (Self-Hosted)'],
+    endpoint: 'https://api.modalhub.ai/v1/audio/transcriptions',
+    modelEndpointId: 'whisper-large-v3',
+    bestFor: 'Meeting summarization pipelines, clinical consultation notes, YouTube captioning, and real-time voice command parsing.',
+    capabilities: ['100+ Languages', 'Word-Level Timestamps', 'Language Auto-Detection', 'Noisy Audio Robustness', 'Direct Translation to English'],
+    sampleCurl: `curl https://api.modalhub.ai/v1/audio/transcriptions \\
+  -H "Authorization: Bearer $MODALHUB_API_KEY" \\
+  -F file="@podcast.mp3" \\
+  -F model="whisper-large-v3" \\
+  -F response_format="verbose_json" \\
+  -F timestamp_granularities[]="word"`,
+    samplePython: `from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://api.modalhub.ai/v1",
+    api_key="your_modalhub_api_key_here"
+)
+
+with open("meeting.mp3", "rb") as audio_file:
+    transcript = client.audio.transcriptions.create(
+        model="whisper-large-v3",
+        file=audio_file,
+        response_format="text"
+    )
+print(transcript)`,
+    sampleNode: `import OpenAI from "openai";
+import fs from "fs";
+
+const client = new OpenAI({
+  baseURL: "https://api.modalhub.ai/v1",
+  apiKey: process.env.MODALHUB_API_KEY,
+});
+
+const transcription = await client.audio.transcriptions.create({
+  file: fs.createReadStream("interview.wav"),
+  model: "whisper-large-v3",
+});
+console.log(transcription.text);`,
+    hardwareRequirements: {
+      gpu: '1x RTX 3060 12GB or Apple M2 / M3 16GB Unified',
+      vram: '6 GB (FP16)',
+      ram: '16 GB',
+      storage: '4 GB NVMe'
     },
-    installed: true,
-    wishlisted: false,
-    sizeOnDisk: '12.8 GB',
-    hardwareStatus: 'Ready'
+    alternatives: ['eleven-multilingual-v2'],
+    rating: 4.8,
+    reviewCount: 42000,
+    apiCallsCount: 110000000,
+    version: 'v3.0.0',
+    releaseDate: '2023-11-06',
+    updatedDate: '2025-10-12',
+    artwork: 'from-teal-950 via-emerald-950 to-slate-950',
+    screenshots: [
+      'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=800&auto=format&fit=crop&q=80'
+    ],
+    trustScore: 98,
+    trustBreakdown: { performance: 98, community: 99, documentation: 98, reliability: 99, creator: 98 },
+    benchmarks: [
+      { name: 'Word Error Rate (WER) Multilingual', score: 93.8 },
+      { name: 'Timestamp Precision (ms)', score: 96.5 },
+      { name: 'English Accented Speech Robustness', score: 97.2 },
+      { name: 'Inference Throughput (Faster-Whisper)', score: 98.0 }
+    ],
+    wishlisted: false
+  },
+  {
+    id: 'biomedlm-2',
+    name: 'BioMedLM 2 Clinical',
+    provider: 'BioGen AI',
+    providerLogo: '🧬',
+    creatorId: 'c10',
+    description: 'Specialized biomedical & genomics transformer tuned on PubMed, clinical trials, and pharmacology datasets.',
+    longDescription: 'BioMedLM 2 is an academic-grade domain-specialized language model engineered for healthcare research, pharmacological interaction analysis, genomics research, and EHR summary generation with strict medical factuality benchmarks.',
+    category: 'Science',
+    tags: ['HEALTHCARE', 'BIOMEDICAL', 'GENOMICS', 'PUBMED', 'SPECIALIZED'],
+    overallScore: 94.8,
+    codingScore: 82.0,
+    reasoningScore: 95.8,
+    mathScore: 88.2,
+    visionScore: 0,
+    speedTokensPerSec: 95,
+    latencyMs: 25,
+    contextWindow: '64K tokens',
+    contextWindowTokens: 64000,
+    parameters: '27 Billion Dense',
+    inputPricePerMillion: 0.80,
+    outputPricePerMillion: 2.40,
+    cachedInputPricePerMillion: 0.20,
+    batchDiscountPercent: 50,
+    isOpenSource: true,
+    license: 'OpenRAIL-M (Research & Commercial Health Compliant)',
+    accessMethods: ['REST API', 'HIPAA BAA Cloud Endpoints', 'Python SDK', 'OpenAI Compatible'],
+    endpoint: 'https://api.modalhub.ai/v1/chat/completions',
+    modelEndpointId: 'biomedlm-2',
+    bestFor: 'Drug discovery candidate screening, clinical trial protocol reviews, patient EHR summary synthesis, and medical literature citation.',
+    capabilities: ['Drug Interaction Mapping', 'PubMed Citation Linking', 'ICD-10 Code Extraction', 'Structured Clinical JSON', 'HIPAA Cloud Isolation'],
+    sampleCurl: `curl https://api.modalhub.ai/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer $MODALHUB_API_KEY" \\
+  -d '{
+    "model": "biomedlm-2",
+    "messages": [
+      {"role": "user", "content": "Analyze potential adverse CYP3A4 drug interactions between Clarithromycin and Atorvastatin."}
+    ]
+  }'`,
+    samplePython: `from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://api.modalhub.ai/v1",
+    api_key="your_modalhub_api_key_here"
+)
+
+response = client.chat.completions.create(
+    model="biomedlm-2",
+    messages=[{"role": "user", "content": "Extract structured oncology trial eligibility criteria from this document."}]
+)
+print(response.choices[0].message.content)`,
+    sampleNode: `import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "https://api.modalhub.ai/v1",
+  apiKey: process.env.MODALHUB_API_KEY,
+});
+
+const res = await client.chat.completions.create({
+  model: "biomedlm-2",
+  messages: [{ role: "user", content: "Summarize molecular pathways involved in KRAS G12D mutation inhibitors." }],
+});
+console.log(res.choices[0].message.content);`,
+    hardwareRequirements: {
+      gpu: '1x A100 40GB or 1x RTX 4090 24GB',
+      vram: '24 GB (Quantized) / 54 GB (FP16)',
+      ram: '64 GB',
+      storage: '60 GB NVMe'
+    },
+    alternatives: ['deepseek-r1', 'gpt-4o'],
+    rating: 4.9,
+    reviewCount: 6800,
+    apiCallsCount: 14000000,
+    version: 'v2.0.4',
+    releaseDate: '2025-02-12',
+    updatedDate: '2026-01-05',
+    artwork: 'from-cyan-950 via-blue-950 to-slate-950',
+    screenshots: [
+      'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=800&auto=format&fit=crop&q=80'
+    ],
+    trustScore: 98,
+    trustBreakdown: { performance: 99, community: 95, documentation: 99, reliability: 98, creator: 98 },
+    benchmarks: [
+      { name: 'USMLE MedQA Exam', score: 91.2 },
+      { name: 'PubMedQA Accuracy', score: 89.4 },
+      { name: 'BioASQ Biomedical Benchmark', score: 94.6 },
+      { name: 'Clinical Hallucination Resistance', score: 97.8 }
+    ],
+    wishlisted: false
+  },
+  {
+    id: 'pixelforge-xl',
+    name: 'PixelForge XL Diffusion',
+    provider: 'NeuralForge',
+    providerLogo: '🎨',
+    creatorId: 'c1',
+    description: 'High-speed latent diffusion image API optimized for photorealistic product renders and inpainting.',
+    longDescription: 'PixelForge XL is a state-of-the-art latent diffusion model engineered to output premium high-fidelity artwork, photorealistic product placements, and complex text renderings. Optimized to read fine instructions, it supports local inference and cloud API endpoints.',
+    category: 'Image',
+    tags: ['DIFFUSION', 'PHOTOREALISM', 'OPEN WEIGHTS', 'INPAINTING', 'API'],
+    overallScore: 94.2,
+    codingScore: 0,
+    reasoningScore: 78.0,
+    mathScore: 0,
+    visionScore: 94.2,
+    speedTokensPerSec: 60,
+    latencyMs: 80,
+    contextWindow: 'Prompt (256 tokens)',
+    contextWindowTokens: 256,
+    parameters: '6.6 Billion Latent Diffusion',
+    inputPricePerMillion: 0.02, // $0.02 per generated image
+    outputPricePerMillion: 0.02,
+    isOpenSource: true,
+    license: 'CreativeML OpenRAIL-M',
+    accessMethods: ['REST API (Images)', 'Python Diffusers', 'ComfyUI Workflow', 'OpenAI Compatible'],
+    endpoint: 'https://api.modalhub.ai/v1/images/generations',
+    modelEndpointId: 'pixelforge-xl',
+    bestFor: 'High-speed eCommerce product background replacement, game asset texture generation, and avatar generation.',
+    capabilities: ['Inpainting & Outpainting', 'ControlNet Depth & Canny', 'LoRA Adapter Support', 'Negative Prompt Filtering', 'Instant Seed Variations'],
+    sampleCurl: `curl https://api.modalhub.ai/v1/images/generations \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer $MODALHUB_API_KEY" \\
+  -d '{
+    "model": "pixelforge-xl",
+    "prompt": "Studio product photograph of a modern ceramic coffee mug on minimalist marble table, soft morning sunlight, 4k.",
+    "n": 1,
+    "size": "1024x1024"
+  }'`,
+    samplePython: `import requests
+
+headers = {"Authorization": "Bearer your_modalhub_api_key"}
+res = requests.post(
+    "https://api.modalhub.ai/v1/images/generations",
+    json={"model": "pixelforge-xl", "prompt": "Vintage 1970s sports car parked on coastal highway sunset."},
+    headers=headers
+)
+print(res.json()["data"][0]["url"])`,
+    sampleNode: `const res = await fetch("https://api.modalhub.ai/v1/images/generations", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": \`Bearer \${process.env.MODALHUB_API_KEY}\`,
+  },
+  body: JSON.stringify({
+    model: "pixelforge-xl",
+    prompt: "Abstract 3D glass geometric spheres floating in purple void.",
+  }),
+});
+const data = await res.json();
+console.log("Image URL:", data.data[0].url);`,
+    hardwareRequirements: {
+      gpu: '1x RTX 3060 12GB or RTX 4070 12GB',
+      vram: '8 GB (SDXL Turbo) / 12 GB (Full)',
+      ram: '16 GB',
+      storage: '15 GB NVMe'
+    },
+    alternatives: ['flux-1-pro'],
+    rating: 4.7,
+    reviewCount: 14800,
+    apiCallsCount: 38000000,
+    version: 'v2.4.0',
+    releaseDate: '2025-11-12',
+    updatedDate: '2026-01-28',
+    artwork: 'from-purple-950 via-indigo-950 to-slate-950',
+    screenshots: [
+      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=800&auto=format&fit=crop&q=80'
+    ],
+    trustScore: 96,
+    trustBreakdown: { performance: 96, community: 94, documentation: 97, reliability: 96, creator: 95 },
+    benchmarks: [
+      { name: 'Image Quality FID Score', score: 94.2 },
+      { name: 'Prompt Adherence', score: 91.7 },
+      { name: 'Generation Speed (sec/image)', score: 95.0 },
+      { name: 'Inpainting Seam Seamlessness', score: 93.4 }
+    ],
+    wishlisted: false
   },
   {
     id: 'neuralvision-4',
-    name: 'NeuralVision 4',
+    name: 'NeuralVision 4 Multimodal',
+    provider: 'VisionLabs',
+    providerLogo: '👁️',
     creatorId: 'c3',
-    description: 'Next-generation multimodal vision model for OCR, classification, and complex spatial queries.',
+    description: 'Ultra-fast vision transformer for OCR, document parsing, object detection, and visual inspection.',
     longDescription: 'NeuralVision 4 bridges advanced visual capabilities with transformer comprehension. It is ideal for developers writing automations, performing optical parsing, auditing camera feeds, and resolving spatial navigation instructions from static images or live streams.',
     category: 'Vision',
-    tags: ['VISION', 'MULTIMODAL', 'FAST', 'OPEN WEIGHTS'],
-    rating: 4.8,
-    reviewCount: 18400,
-    installCount: 284000,
-    price: 0,
-    pricingType: 'free',
-    pricingDetails: {
-      local: 'Free (Open Source)',
-      cloud: '₹0.01 / 100 queries'
+    tags: ['VISION', 'OCR', 'OPEN WEIGHTS', 'FAST INFERENCE', 'DOCUMENT AI'],
+    overallScore: 96.2,
+    codingScore: 84.0,
+    reasoningScore: 92.4,
+    mathScore: 86.0,
+    visionScore: 98.4,
+    speedTokensPerSec: 145,
+    latencyMs: 18,
+    contextWindow: '64K tokens',
+    contextWindowTokens: 64000,
+    parameters: '14 Billion Dense Vision Transformer',
+    inputPricePerMillion: 0.20,
+    outputPricePerMillion: 0.70,
+    cachedInputPricePerMillion: 0.08,
+    batchDiscountPercent: 40,
+    isOpenSource: true,
+    license: 'Apache 2.0 (Open Weights)',
+    accessMethods: ['REST API (Vision)', 'Python SDK', 'Node.js SDK', 'OpenAI Compatible'],
+    endpoint: 'https://api.modalhub.ai/v1/chat/completions',
+    modelEndpointId: 'neuralvision-4',
+    bestFor: 'Receipt & invoice extraction, warehouse barcode & inventory vision, chart-to-JSON parsing, and real-time security bounding boxes.',
+    capabilities: ['High-Resolution OCR', 'Bounding Box Coordinate Output', 'Complex Table-to-JSON', 'PDF Document Multi-Page Ingestion', 'Streaming Vision Responses'],
+    sampleCurl: `curl https://api.modalhub.ai/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer $MODALHUB_API_KEY" \\
+  -d '{
+    "model": "neuralvision-4",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {"type": "text", "text": "Extract all line items, tax, and totals from this receipt image."},
+          {"type": "image_url", "image_url": {"url": "https://example.com/receipt.jpg"}}
+        ]
+      }
+    ]
+  }'`,
+    samplePython: `from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://api.modalhub.ai/v1",
+    api_key="your_modalhub_api_key_here"
+)
+
+response = client.chat.completions.create(
+    model="neuralvision-4",
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Detect all objects and output bounding boxes as JSON coordinates."},
+                {"type": "image_url", "image_url": {"url": "https://example.com/warehouse.jpg"}}
+            ]
+        }
+    ]
+)
+print(response.choices[0].message.content)`,
+    sampleNode: `import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "https://api.modalhub.ai/v1",
+  apiKey: process.env.MODALHUB_API_KEY,
+});
+
+const res = await client.chat.completions.create({
+  model: "neuralvision-4",
+  messages: [{
+    role: "user",
+    content: [
+      { type: "text", text: "Parse this financial chart into a clean CSV table." },
+      { type: "image_url", image_url: { url: "https://example.com/chart.png" } }
+    ]
+  }],
+});
+console.log(res.choices[0].message.content);`,
+    hardwareRequirements: {
+      gpu: '1x RTX 3080 10GB or 1x RTX 4070 12GB',
+      vram: '12 GB (FP16)',
+      ram: '32 GB',
+      storage: '30 GB NVMe'
     },
+    alternatives: ['gemini-1-5-pro', 'gpt-4o'],
+    rating: 4.8,
+    reviewCount: 19400,
+    apiCallsCount: 52000000,
     version: 'v4.1.2',
     releaseDate: '2026-02-10',
-    updatedDate: '2026-08-15',
-    artwork: 'from-emerald-800 to-teal-900',
+    updatedDate: '2026-02-15',
+    artwork: 'from-emerald-950 via-teal-950 to-slate-950',
     screenshots: [
       'https://images.unsplash.com/photo-1507668077129-56e32842fceb?w=800&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1544256718-3bcf237f3974?w=800&auto=format&fit=crop&q=80'
     ],
     trustScore: 97,
-    trustBreakdown: {
-      performance: 98,
-      community: 96,
-      documentation: 99,
-      reliability: 97,
-      creator: 95
-    },
+    trustBreakdown: { performance: 98, community: 96, documentation: 99, reliability: 97, creator: 95 },
     benchmarks: [
-      { name: 'OCR Accuracy', score: 98.4 },
-      { name: 'Spatial Parsing', score: 94.6 },
-      { name: 'Real-time Latency', score: 96.1 },
-      { name: 'Classification', score: 97.8 }
+      { name: 'DocVQA Accuracy', score: 94.8 },
+      { name: 'OCR Character Accuracy', score: 99.1 },
+      { name: 'ChartQA Benchmark', score: 88.5 },
+      { name: 'Table Extraction Exact Match', score: 91.2 }
     ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'RTX 2060 / RX 5600',
-        vram: '6 GB',
-        ram: '12 GB',
-        storage: '6.4 GB'
-      },
-      recommended: {
-        gpu: 'RTX 3080 / RX 6800',
-        vram: '12 GB',
-        ram: '16 GB',
-        storage: '8 GB'
-      }
-    },
-    installed: false,
-    wishlisted: false,
-    sizeOnDisk: '7.2 GB'
-  },
-  {
-    id: 'codeforge-7b',
-    name: 'CodeForge 7B',
-    creatorId: 'c2',
-    description: 'Coding assistant optimized for local consumer GPUs, supporting 32 programming languages.',
-    longDescription: 'CodeForge 7B is a developer-centric model optimized for code autocomplete, complex debugging, refactoring, and shell commands. Running comfortably within 8GB VRAM budgets, it delivers near-SOTA developer speed directly on your local system.',
-    category: 'Coding',
-    tags: ['DEVELOPER', 'LOCAL-GPU', 'AUTOCOMPLETE', 'FAST'],
-    rating: 4.8,
-    reviewCount: 31200,
-    installCount: 1200000,
-    price: 0,
-    pricingType: 'free',
-    pricingDetails: {
-      local: 'Free (Apache 2.0)',
-      cloud: 'Not Offered'
-    },
-    version: 'v3.2.1',
-    releaseDate: '2025-06-20',
-    updatedDate: '2026-08-01',
-    artwork: 'from-blue-800 to-indigo-950',
-    screenshots: [
-      'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=800&auto=format&fit=crop&q=80'
-    ],
-    trustScore: 98,
-    trustBreakdown: {
-      performance: 98,
-      community: 99,
-      documentation: 97,
-      reliability: 98,
-      creator: 98
-    },
-    benchmarks: [
-      { name: 'HumanEval Pass@1', score: 84.5 },
-      { name: 'MultiPL-E passing', score: 81.2 },
-      { name: 'Reasoning speed', score: 94.0 },
-      { name: 'JSON formatting', score: 98.7 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'RTX 3060 / GTX 1080 Ti',
-        vram: '8 GB',
-        ram: '16 GB',
-        storage: '8.4 GB'
-      },
-      recommended: {
-        gpu: 'RTX 4070 / RX 7700 XT',
-        vram: '12 GB',
-        ram: '16 GB',
-        storage: '10 GB'
-      }
-    },
-    installed: true,
-    wishlisted: false,
-    sizeOnDisk: '8.4 GB',
-    hardwareStatus: 'Ready'
-  },
-  {
-    id: 'audionova',
-    name: 'AudioNova',
-    creatorId: 'c6',
-    description: 'Natural speech and conversational voice generator with real-time emotion blending.',
-    longDescription: 'AudioNova creates high-fidelity synthetic voices with dynamic pitch, pacing, and human-like emotional inflections. Perfect for game dialog pipelines, virtual agents, and premium narrations.',
-    category: 'Speech',
-    tags: ['SPEECH', 'SYNTHESIS', 'EMOTION', 'API-READY'],
-    rating: 4.6,
-    reviewCount: 1420,
-    installCount: 391000,
-    price: 0,
-    pricingType: 'cloud-only',
-    pricingDetails: {
-      local: 'Not Available',
-      cloud: '₹0.02 / minute',
-      pro: '₹499 / month (10k min)'
-    },
-    version: 'v1.8.0',
-    releaseDate: '2026-01-15',
-    updatedDate: '2026-05-18',
-    artwork: 'from-orange-800 to-amber-950',
-    screenshots: [
-      'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=800&auto=format&fit=crop&q=80'
-    ],
-    trustScore: 89,
-    trustBreakdown: {
-      performance: 91,
-      community: 85,
-      documentation: 93,
-      reliability: 88,
-      creator: 90
-    },
-    benchmarks: [
-      { name: 'MOS (Mean Opinion Score)', score: 92.4 },
-      { name: 'Emotion accuracy', score: 86.8 },
-      { name: 'Synthesis speed', score: 94.0 },
-      { name: 'Word error rate', score: 97.2 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'RTX 2060',
-        vram: '6 GB',
-        ram: '8 GB',
-        storage: '4 GB'
-      },
-      recommended: {
-        gpu: 'RTX 3070',
-        vram: '8 GB',
-        ram: '16 GB',
-        storage: '5 GB'
-      }
-    },
-    installed: false,
-    wishlisted: true,
-    sizeOnDisk: '3.8 GB'
-  },
-  {
-    id: 'reasonx-32b',
-    name: 'ReasonX 32B',
-    creatorId: 'c4',
-    description: 'Advanced reasoning, step-by-step logic extraction, and math formulation.',
-    longDescription: 'ReasonX 32B is an industrial-strength reasoning engine optimized to break complex scientific, engineering, and coding queries into explicit chains of logic before providing final synthesis.',
-    category: 'Reasoning',
-    tags: ['REASONING', 'LOGIC-CHAIN', 'MATH', 'SOTA'],
-    rating: 4.9,
-    reviewCount: 3890,
-    installCount: 512000,
-    price: 449,
-    originalPrice: 899,
-    discountPercent: 50,
-    isDiscounted: true,
-    discountEndsIn: '3d 06h',
-    discountBadge: '🧠 Super Logic - 50% OFF',
-    pricingType: 'paid',
-    pricingDetails: {
-      local: '₹449 (Deal License)',
-      cloud: '₹0.15 / token query',
-      pro: '₹1499 / month (Enterprise)'
-    },
-    version: 'v1.0.4',
-    releaseDate: '2026-05-01',
-    updatedDate: '2026-08-10',
-    artwork: 'from-red-800 to-rose-950',
-    screenshots: [
-      'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=800&auto=format&fit=crop&q=80'
-    ],
-    trustScore: 96,
-    trustBreakdown: {
-      performance: 99,
-      community: 93,
-      documentation: 98,
-      reliability: 95,
-      creator: 97
-    },
-    benchmarks: [
-      { name: 'MMLU Accuracy', score: 91.2 },
-      { name: 'GSM8K Math passing', score: 95.4 },
-      { name: 'GPQA Reasoning', score: 86.8 },
-      { name: 'Code Generation', score: 92.0 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'RTX 4070 Ti / RX 7800 XT',
-        vram: '16 GB',
-        ram: '32 GB',
-        storage: '28 GB'
-      },
-      recommended: {
-        gpu: 'RTX 4090 / RTX A6000',
-        vram: '24 GB',
-        ram: '64 GB',
-        storage: '35 GB'
-      }
-    },
-    installed: false,
-    wishlisted: false,
-    sizeOnDisk: '24.5 GB'
-  },
-  {
-    id: 'vidcraft',
-    name: 'VidCraft',
-    creatorId: 'c8',
-    description: 'High-fidelity cinematic text-to-video generation.',
-    longDescription: 'VidCraft renders short, dramatic, highly physical movie-like animations and cinematic clips from direct text commands. Includes support for camera pans, custom aspect ratios, and speed settings.',
-    category: 'Video',
-    tags: ['VIDEO-DIFFUSION', 'CINEMATIC', 'TEXT-TO-VIDEO', 'PRO'],
-    rating: 4.5,
-    reviewCount: 920,
-    installCount: 217000,
-    price: 299,
-    originalPrice: 599,
-    discountPercent: 50,
-    isDiscounted: true,
-    discountEndsIn: '1d 08h',
-    discountBadge: '🎬 Geek Fest - 50% OFF',
-    pricingType: 'paid',
-    pricingDetails: {
-      local: '₹299 Lifetime',
-      cloud: '₹1.20 / sec video'
-    },
-    version: 'v0.9.5',
-    releaseDate: '2026-03-05',
-    updatedDate: '2026-07-20',
-    artwork: 'from-pink-800 to-purple-950',
-    screenshots: [
-      'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=800&auto=format&fit=crop&q=80'
-    ],
-    trustScore: 91,
-    trustBreakdown: {
-      performance: 92,
-      community: 89,
-      documentation: 90,
-      reliability: 92,
-      creator: 94
-    },
-    benchmarks: [
-      { name: 'Motion Consistency', score: 89.2 },
-      { name: 'Photorealism Index', score: 92.4 },
-      { name: 'Generation Speed', score: 79.1 },
-      { name: 'Prompt Fidelity', score: 88.5 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'RTX 3080 / RX 6800 XT',
-        vram: '12 GB',
-        ram: '32 GB',
-        storage: '25 GB'
-      },
-      recommended: {
-        gpu: 'RTX 4090 / RX 7900 XTX',
-        vram: '24 GB',
-        ram: '64 GB',
-        storage: '35 GB'
-      }
-    },
-    installed: false,
-    wishlisted: false,
-    sizeOnDisk: '22.0 GB'
-  },
-  {
-    id: 'codeforge-lite',
-    name: 'CodeForge Lite',
-    creatorId: 'c2',
-    description: 'Ultra-fast autocomplete coding assistant for lighter machines.',
-    longDescription: 'A compressed, high-performance variant of CodeForge engineered strictly for real-time cursor autocomplete, simple debugging, and syntax checks, ideal for running on laptops or low-end desktops.',
-    category: 'Coding',
-    tags: ['AUTOCOMPLETE', 'TINY', 'CPU-FRIENDLY'],
-    rating: 4.4,
-    reviewCount: 8900,
-    installCount: 600000,
-    price: 0,
-    pricingType: 'free',
-    pricingDetails: {
-      local: 'Free (Open Weights)',
-      cloud: 'Not Offered'
-    },
-    version: 'v1.4.0',
-    releaseDate: '2025-08-11',
-    updatedDate: '2026-03-12',
-    artwork: 'from-blue-700 to-cyan-900',
-    screenshots: [],
-    trustScore: 94,
-    trustBreakdown: {
-      performance: 90,
-      community: 95,
-      documentation: 96,
-      reliability: 95,
-      creator: 98
-    },
-    benchmarks: [
-      { name: 'Latency (ms)', score: 98.2 },
-      { name: 'Autocomplete Pass', score: 72.4 },
-      { name: 'Context Accuracy', score: 85.0 },
-      { name: 'Memory Footprint', score: 99.1 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'CPU Only Compatible / GTX 1060',
-        vram: '3 GB',
-        ram: '8 GB',
-        storage: '2.8 GB'
-      },
-      recommended: {
-        gpu: 'RTX 2060 / Apple M1',
-        vram: '6 GB',
-        ram: '16 GB',
-        storage: '4 GB'
-      }
-    },
-    installed: true,
-    wishlisted: false,
-    sizeOnDisk: '2.8 GB',
-    hardwareStatus: 'Ready'
-  },
-  {
-    id: 'pixelforge-fast',
-    name: 'PixelForge Fast',
-    creatorId: 'c1',
-    description: 'Real-time image generation model rendering high-quality outputs in under 1 second.',
-    longDescription: 'PixelForge Fast uses adversarial consistency distilling (ADD) to output visual assets, web designs, and interface mockups with single-step inference, making it incredibly responsive.',
-    category: 'Image',
-    tags: ['REALTIME', 'FAST', 'DIFFUSION', 'STYLIZED'],
-    rating: 4.5,
-    reviewCount: 3100,
-    installCount: 450000,
-    price: 0,
-    pricingType: 'free',
-    pricingDetails: {
-      local: 'Free (Creative Commons)',
-      cloud: '₹0.02 / generation'
-    },
-    version: 'v1.2.0',
-    releaseDate: '2026-02-28',
-    updatedDate: '2026-06-14',
-    artwork: 'from-purple-600 to-pink-900',
-    screenshots: [],
-    trustScore: 90,
-    trustBreakdown: {
-      performance: 95,
-      community: 88,
-      documentation: 92,
-      reliability: 89,
-      creator: 93
-    },
-    benchmarks: [
-      { name: 'Inference Speed', score: 99.4 },
-      { name: 'Image Fidelity', score: 82.1 },
-      { name: 'Text Embedding', score: 78.4 },
-      { name: 'Diverse Styles', score: 91.0 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'RTX 3050',
-        vram: '4 GB',
-        ram: '8 GB',
-        storage: '5.2 GB'
-      },
-      recommended: {
-        gpu: 'RTX 3070 / Apple M2',
-        vram: '8 GB',
-        ram: '16 GB',
-        storage: '6 GB'
-      }
-    },
-    installed: false,
-    wishlisted: true,
-    sizeOnDisk: '5.2 GB'
-  },
-  {
-    id: 'soundscape',
-    name: 'SoundScape',
-    creatorId: 'c5',
-    description: 'Interactive synthesizers and procedural background score creator.',
-    longDescription: 'SoundScape takes prompt cues and creates multi-layered synth pads, ambient gaming tracks, sound effects, or loops. Highly customizable for indie developers and sound engineers.',
-    category: 'Audio',
-    tags: ['MUSIC', 'SOUNDFX', 'PROCEDURAL', 'INDIE'],
-    rating: 4.7,
-    reviewCount: 680,
-    installCount: 180000,
-    price: 179,
-    originalPrice: 299,
-    discountPercent: 40,
-    isDiscounted: true,
-    discountEndsIn: '1d 19h',
-    discountBadge: '🎵 Indie Sound - 40% OFF',
-    pricingType: 'paid',
-    pricingDetails: {
-      local: '₹299 One-time',
-      cloud: 'Not Offered'
-    },
-    version: 'v2.0.1',
-    releaseDate: '2025-10-05',
-    updatedDate: '2026-04-12',
-    artwork: 'from-yellow-800 to-orange-950',
-    screenshots: [],
-    trustScore: 92,
-    trustBreakdown: {
-      performance: 94,
-      community: 90,
-      documentation: 95,
-      reliability: 91,
-      creator: 88
-    },
-    benchmarks: [
-      { name: 'Instrument Clarity', score: 94.8 },
-      { name: 'Rhythm Syncing', score: 96.2 },
-      { name: 'Ambient Diversity', score: 90.0 },
-      { name: 'Export Latency', score: 88.0 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'GTX 1060 / Apple M1',
-        vram: '3 GB',
-        ram: '8 GB',
-        storage: '3.5 GB'
-      },
-      recommended: {
-        gpu: 'RTX 2060 / RX 5600',
-        vram: '6 GB',
-        ram: '16 GB',
-        storage: '4 GB'
-      }
-    },
-    installed: false,
-    wishlisted: false,
-    sizeOnDisk: '3.5 GB'
-  },
-  {
-    id: 'talksync',
-    name: 'TalkSync',
-    creatorId: 'c6',
-    description: 'Real-time localized speech translator and dynamic voice cloner.',
-    longDescription: 'TalkSync translates and streams spoken audio between 42 languages within 200ms, preserving the speaker\'s original vocal characteristics, accent, and dynamic resonance.',
-    category: 'Speech',
-    tags: ['TRANSLATION', 'SPEECH-TO-SPEECH', 'REALTIME', 'VOICE-CLONE'],
-    rating: 4.6,
-    reviewCount: 940,
-    installCount: 250000,
-    price: 0,
-    pricingType: 'free',
-    pricingDetails: {
-      local: 'Free Personal Use',
-      cloud: '₹0.04 / request'
-    },
-    version: 'v1.1.0',
-    releaseDate: '2026-04-01',
-    updatedDate: '2026-07-15',
-    artwork: 'from-amber-700 to-yellow-900',
-    screenshots: [],
-    trustScore: 88,
-    trustBreakdown: {
-      performance: 90,
-      community: 84,
-      documentation: 91,
-      reliability: 87,
-      creator: 90
-    },
-    benchmarks: [
-      { name: 'Translation Accuracy', score: 93.4 },
-      { name: 'Vocal Match Index', score: 89.2 },
-      { name: 'Latency (ms)', score: 97.0 },
-      { name: 'Background Noise Fil.', score: 85.0 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'RTX 2060',
-        vram: '6 GB',
-        ram: '8 GB',
-        storage: '4.8 GB'
-      },
-      recommended: {
-        gpu: 'RTX 3060',
-        vram: '8 GB',
-        ram: '16 GB',
-        storage: '6 GB'
-      }
-    },
-    installed: false,
-    wishlisted: false,
-    sizeOnDisk: '4.8 GB'
-  },
-  {
-    id: 'logicpro-70b',
-    name: 'LogicPro 70B',
-    creatorId: 'c4',
-    description: 'Flagship open reasoning and text parsing system for scientific synthesis.',
-    longDescription: 'With 70 Billion parameters, LogicPro is trained specifically to dissect advanced math proofs, legal definitions, scientific data sheets, and multi-agent strategies with absolute detail.',
-    category: 'Reasoning',
-    tags: ['HEAVY-WEIGHT', 'REASONING', 'ACADEMIC', '70B'],
-    rating: 4.9,
-    reviewCount: 1950,
-    installCount: 310000,
-    price: 899,
-    originalPrice: 1499,
-    discountPercent: 40,
-    isDiscounted: true,
-    discountEndsIn: '16h 45m',
-    discountBadge: '⚡ 70B Heavyweight - 40% OFF',
-    pricingType: 'paid',
-    pricingDetails: {
-      local: '₹899 (Agora Special License)',
-      cloud: '₹0.22 / token query',
-      pro: '₹2499 / month'
-    },
-    version: 'v3.0.0',
-    releaseDate: '2026-06-25',
-    updatedDate: '2026-08-20',
-    artwork: 'from-rose-800 to-red-950',
-    screenshots: [],
-    trustScore: 97,
-    trustBreakdown: {
-      performance: 99,
-      community: 95,
-      documentation: 96,
-      reliability: 97,
-      creator: 98
-    },
-    benchmarks: [
-      { name: 'MMLU Hard math', score: 94.6 },
-      { name: 'Logical Deduction', score: 97.4 },
-      { name: 'Coding Synthesis', score: 91.2 },
-      { name: 'Text Summary API', score: 98.0 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'RTX A5000 / RTX 4090 x2',
-        vram: '48 GB',
-        ram: '64 GB',
-        storage: '62 GB'
-      },
-      recommended: {
-        gpu: 'Nvidia A100 / RTX 8000 x2',
-        vram: '80 GB',
-        ram: '128 GB',
-        storage: '75 GB'
-      }
-    },
-    installed: false,
-    wishlisted: false,
-    sizeOnDisk: '62.4 GB'
-  },
-  {
-    id: 'scribeai',
-    name: 'ScribeAI',
-    creatorId: 'c7',
-    description: 'Creative drafting agent for screenwriters, copy editors, and long-form narrative authors.',
-    longDescription: 'ScribeAI includes special memory vectors designed to trace characters, plot arcs, and brand tones across continuous 128k token context windows. Perfect for authors planning major publications.',
-    category: 'Writing',
-    tags: ['WRITING', 'NARRATIVE', '128K-CONTEXT', 'CREATIVE'],
-    rating: 4.5,
-    reviewCount: 4600,
-    installCount: 620000,
-    price: 0,
-    pricingType: 'free',
-    pricingDetails: {
-      local: 'Free (Apache 2.0)',
-      cloud: '₹0.02 / 100 words'
-    },
-    version: 'v2.1.0',
-    releaseDate: '2025-09-14',
-    updatedDate: '2026-02-18',
-    artwork: 'from-teal-800 to-cyan-950',
-    screenshots: [],
-    trustScore: 93,
-    trustBreakdown: {
-      performance: 92,
-      community: 94,
-      documentation: 95,
-      reliability: 92,
-      creator: 93
-    },
-    benchmarks: [
-      { name: 'Plot Consistency', score: 91.5 },
-      { name: 'Style Customization', score: 95.0 },
-      { name: 'Context Retention', score: 96.2 },
-      { name: 'Typo & Gram Audit', score: 98.4 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'GTX 1070 / Apple M1',
-        vram: '8 GB',
-        ram: '16 GB',
-        storage: '6.5 GB'
-      },
-      recommended: {
-        gpu: 'RTX 3060 / Apple M2',
-        vram: '8 GB',
-        ram: '32 GB',
-        storage: '8 GB'
-      }
-    },
-    installed: false,
-    wishlisted: true,
-    sizeOnDisk: '6.5 GB'
-  },
-  {
-    id: 'taskagent-v2',
-    name: 'TaskAgent v2',
-    creatorId: 'c7',
-    description: 'Autonomous web agent that executes browser and filesystem workflows.',
-    longDescription: 'TaskAgent v2 connects structural planning to a safe system sandbox. It can draft files, perform complex web research, summarize spreadsheets, and run terminal scripts with explicit user boundaries.',
-    category: 'Agents',
-    tags: ['AUTONOMOUS', 'SANDBOX-RUN', 'SCRIPTER', 'AGENTS'],
-    rating: 4.6,
-    reviewCount: 1100,
-    installCount: 125000,
-    price: 359,
-    originalPrice: 599,
-    discountPercent: 40,
-    isDiscounted: true,
-    discountEndsIn: '22h 15m',
-    discountBadge: '🤖 Autonomous Agent - 40% OFF',
-    pricingType: 'paid',
-    pricingDetails: {
-      local: '₹359 Deal License',
-      cloud: '₹0.18 / action block',
-      pro: '₹999 / month (Enterprise)'
-    },
-    version: 'v2.0.0',
-    releaseDate: '2026-05-15',
-    updatedDate: '2026-08-11',
-    artwork: 'from-cyan-800 to-sky-950',
-    screenshots: [],
-    trustScore: 92,
-    trustBreakdown: {
-      performance: 93,
-      community: 89,
-      documentation: 95,
-      reliability: 90,
-      creator: 94
-    },
-    benchmarks: [
-      { name: 'Tool Exec Success', score: 94.0 },
-      { name: 'Web Navigation', score: 91.5 },
-      { name: 'Failsafe Triggers', score: 98.0 },
-      { name: 'Context Compiling', score: 92.4 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'RTX 3060',
-        vram: '8 GB',
-        ram: '16 GB',
-        storage: '7.8 GB'
-      },
-      recommended: {
-        gpu: 'RTX 4070 / Apple M3',
-        vram: '12 GB',
-        ram: '32 GB',
-        storage: '10 GB'
-      }
-    },
-    installed: false,
-    wishlisted: false,
-    sizeOnDisk: '7.8 GB'
-  },
-  {
-    id: 'genepredict',
-    name: 'GenePredict',
-    creatorId: 'c10',
-    description: '3D Protein folding folding models and genomics structure analyzer.',
-    longDescription: 'GenePredict takes custom amino acid sequences and predicts 3D structures and folding paths with high spatial accuracy. An invaluable resource for molecular biologists and drug developers.',
-    category: 'Science',
-    tags: ['MOLECULAR', 'GENOMICS', 'PROTEIN-FOLDING', 'RESEARCH'],
-    rating: 4.9,
-    reviewCount: 810,
-    installCount: 89000,
-    price: 0,
-    pricingType: 'free',
-    pricingDetails: {
-      local: 'Free Academic Use',
-      cloud: 'Not Offered'
-    },
-    version: 'v4.0.0',
-    releaseDate: '2025-12-01',
-    updatedDate: '2026-06-30',
-    artwork: 'from-emerald-700 to-green-950',
-    screenshots: [],
-    trustScore: 98,
-    trustBreakdown: {
-      performance: 99,
-      community: 96,
-      documentation: 99,
-      reliability: 98,
-      creator: 99
-    },
-    benchmarks: [
-      { name: 'GDT Score (Folding)', score: 98.7 },
-      { name: 'Spatial Bind Prediction', score: 96.4 },
-      { name: 'Seq Matching Speed', score: 92.0 },
-      { name: 'Format Compatibility', score: 99.4 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'RTX 3070',
-        vram: '8 GB',
-        ram: '32 GB',
-        storage: '18 GB'
-      },
-      recommended: {
-        gpu: 'RTX 4090 / A100',
-        vram: '24 GB',
-        ram: '64 GB',
-        storage: '25 GB'
-      }
-    },
-    installed: false,
-    wishlisted: false,
-    sizeOnDisk: '18.4 GB'
-  },
-  {
-    id: 'chemsynth',
-    name: 'ChemSynth',
-    creatorId: 'c10',
-    description: 'Molecular design, bond reaction predictor, and compound synthesizer.',
-    longDescription: 'ChemSynth predicts molecular reactions, identifies toxicity pathways, and drafts step-by-step synthetic blueprints for custom pharmaceutical compounds.',
-    category: 'Science',
-    tags: ['CHEMISTRY', 'PHARMA', 'REACTION-MOD', 'ENTERPRISE'],
-    rating: 4.8,
-    reviewCount: 390,
-    installCount: 45000,
-    price: 999,
-    originalPrice: 2499,
-    discountPercent: 60,
-    isDiscounted: true,
-    discountEndsIn: '14h 10m',
-    discountBadge: '🧬 Research Grant - 60% OFF',
-    pricingType: 'paid',
-    pricingDetails: {
-      local: '₹999/node (Sale License)',
-      cloud: '₹1.50 / query structure'
-    },
-    version: 'v1.4.2',
-    releaseDate: '2026-03-22',
-    updatedDate: '2026-07-02',
-    artwork: 'from-green-800 to-emerald-950',
-    screenshots: [],
-    trustScore: 95,
-    trustBreakdown: {
-      performance: 96,
-      community: 90,
-      documentation: 97,
-      reliability: 95,
-      creator: 98
-    },
-    benchmarks: [
-      { name: 'Toxicity Precision', score: 95.8 },
-      { name: 'Reaction Feasibility', score: 93.2 },
-      { name: 'Catalyst Parsing', score: 96.0 },
-      { name: 'Structural Diversity', score: 90.5 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'RTX 3080',
-        vram: '10 GB',
-        ram: '32 GB',
-        storage: '15 GB'
-      },
-      recommended: {
-        gpu: 'RTX 4090',
-        vram: '24 GB',
-        ram: '64 GB',
-        storage: '20 GB'
-      }
-    },
-    installed: false,
-    wishlisted: false,
-    sizeOnDisk: '14.2 GB'
-  },
-  {
-    id: 'storyweaver',
-    name: 'StoryWeaver',
-    creatorId: 'c9',
-    description: 'Interactive narrative engine and dialog generator for fiction writers.',
-    longDescription: 'StoryWeaver formats novels, maps branchable game scripts, and simulates conversational voices of diverse literary personas.',
-    category: 'Writing',
-    tags: ['FICTION', 'DRAFTING', 'GAME-DEV', 'DIALOGS'],
-    rating: 4.3,
-    reviewCount: 1100,
-    installCount: 140000,
-    price: 0,
-    pricingType: 'free',
-    pricingDetails: {
-      local: 'Free (Personal)',
-      cloud: '₹0.02 / block'
-    },
-    version: 'v2.2.0',
-    releaseDate: '2025-10-10',
-    updatedDate: '2026-01-20',
-    artwork: 'from-teal-700 to-emerald-900',
-    screenshots: [],
-    trustScore: 89,
-    trustBreakdown: {
-      performance: 88,
-      community: 92,
-      documentation: 90,
-      reliability: 87,
-      creator: 91
-    },
-    benchmarks: [
-      { name: 'Creativity Index', score: 94.0 },
-      { name: 'Grammar Compliance', score: 92.4 },
-      { name: 'Coherence at Length', score: 85.0 },
-      { name: 'Persona Fidelity', score: 90.2 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'GTX 1060',
-        vram: '6 GB',
-        ram: '8 GB',
-        storage: '4.5 GB'
-      },
-      recommended: {
-        gpu: 'RTX 2060',
-        vram: '6 GB',
-        ram: '16 GB',
-        storage: '5 GB'
-      }
-    },
-    installed: false,
-    wishlisted: false,
-    sizeOnDisk: '4.5 GB'
-  },
-  {
-    id: 'designforge',
-    name: 'DesignForge',
-    creatorId: 'c1',
-    description: 'Interface vector layout model and style sheets compiler.',
-    longDescription: 'DesignForge outputs clean layout parameters, wireframes, logo paths, and functional vanilla style sheet blocks from visual and textual descriptions.',
-    category: 'Image',
-    tags: ['VECTOR', 'UI-DESIGN', 'STYLE-SHEETS', 'VITE-READY'],
-    rating: 4.6,
-    reviewCount: 880,
-    installCount: 110000,
-    price: 479,
-    originalPrice: 799,
-    discountPercent: 40,
-    isDiscounted: true,
-    discountEndsIn: '2d 11h',
-    discountBadge: '🎨 UI Vectors - 40% OFF',
-    pricingType: 'subscription',
-    pricingDetails: {
-      local: 'Pro Deal Tier',
-      cloud: '₹0.06 / generation',
-      pro: '₹479 / month (Sale rate)'
-    },
-    version: 'v1.4.0',
-    releaseDate: '2026-01-08',
-    updatedDate: '2026-05-12',
-    artwork: 'from-purple-900 to-fuchsia-950',
-    screenshots: [],
-    trustScore: 91,
-    trustBreakdown: {
-      performance: 92,
-      community: 88,
-      documentation: 93,
-      reliability: 90,
-      creator: 94
-    },
-    benchmarks: [
-      { name: 'Vector Alignment', score: 94.2 },
-      { name: 'CSS Export Conformity', score: 91.8 },
-      { name: 'Layout aesthetics', score: 89.0 },
-      { name: 'Speed', score: 90.0 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'RTX 2060',
-        vram: '6 GB',
-        ram: '16 GB',
-        storage: '8 GB'
-      },
-      recommended: {
-        gpu: 'RTX 3070',
-        vram: '8 GB',
-        ram: '16 GB',
-        storage: '10 GB'
-      }
-    },
-    installed: false,
-    wishlisted: false,
-    sizeOnDisk: '8.0 GB'
-  },
-  {
-    id: 'cinemotion',
-    name: 'CineMotion',
-    creatorId: 'c8',
-    description: '4K physical motion and fluid dynamics video generator.',
-    longDescription: 'CineMotion generates ultra-premium 4K video clips, showcasing accurate fluid physics, high-speed camera dynamics, and complex ray-traced shadows.',
-    category: 'Video',
-    tags: ['VIDEO-DIFFUSION', '4K-RENDER', 'PHYSICAL-FLUIDS', 'CINEMATIC'],
-    rating: 4.8,
-    reviewCount: 540,
-    installCount: 95000,
-    price: 649,
-    originalPrice: 1299,
-    discountPercent: 50,
-    isDiscounted: true,
-    discountEndsIn: '2d 04h',
-    discountBadge: '🎥 Cinema 4K - 50% OFF',
-    pricingType: 'paid',
-    pricingDetails: {
-      local: '₹649 One-time Deal',
-      cloud: '₹1.40 / sec rendering'
-    },
-    version: 'v1.0.0',
-    releaseDate: '2026-05-20',
-    updatedDate: '2026-08-01',
-    artwork: 'from-pink-900 to-rose-950',
-    screenshots: [],
-    trustScore: 95,
-    trustBreakdown: {
-      performance: 97,
-      community: 92,
-      documentation: 94,
-      reliability: 95,
-      creator: 97
-    },
-    benchmarks: [
-      { name: 'Resolution Check (4K)', score: 98.2 },
-      { name: 'Physics Consistency', score: 94.6 },
-      { name: 'Render Speed Index', score: 72.0 },
-      { name: 'Shadow Realism', score: 96.8 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'RTX 3090 / RX 7900 XT',
-        vram: '24 GB',
-        ram: '32 GB',
-        storage: '40 GB'
-      },
-      recommended: {
-        gpu: 'RTX 4090 / RTX 6000 Ada',
-        vram: '24 GB / 48 GB',
-        ram: '64 GB',
-        storage: '50 GB'
-      }
-    },
-    installed: false,
-    wishlisted: false,
-    sizeOnDisk: '38.5 GB'
-  },
-  {
-    id: 'voiceduet',
-    name: 'VoiceDuet',
-    creatorId: 'c5',
-    description: 'Dual-voice singing synthesizer and acoustic vocal model conversion.',
-    longDescription: 'VoiceDuet maps multi-octave range files, blends harmonic singing structures, and allows users to convert vocal tracks to distinct timbres instantly.',
-    category: 'Audio',
-    tags: ['SINGING', 'HARMONY', 'VOCAL-CONV', 'INDIE'],
-    rating: 4.7,
-    reviewCount: 510,
-    installCount: 150000,
-    price: 0,
-    pricingType: 'free',
-    pricingDetails: {
-      local: 'Free Personal Use',
-      cloud: '₹0.10 / min audio render'
-    },
-    version: 'v1.4.0',
-    releaseDate: '2026-02-14',
-    updatedDate: '2026-06-08',
-    artwork: 'from-orange-700 to-red-900',
-    screenshots: [],
-    trustScore: 90,
-    trustBreakdown: {
-      performance: 92,
-      community: 89,
-      documentation: 90,
-      reliability: 88,
-      creator: 89
-    },
-    benchmarks: [
-      { name: 'Harmony Precision', score: 94.5 },
-      { name: 'Vocal Timber Cloner', score: 92.0 },
-      { name: 'Octave Range Scope', score: 91.2 },
-      { name: 'Audio Latency', score: 87.0 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'GTX 1060 / Apple M1',
-        vram: '6 GB',
-        ram: '8 GB',
-        storage: '6 GB'
-      },
-      recommended: {
-        gpu: 'RTX 2060 / Apple M2',
-        vram: '6 GB',
-        ram: '16 GB',
-        storage: '7 GB'
-      }
-    },
-    installed: false,
-    wishlisted: false,
-    sizeOnDisk: '6.0 GB'
-  },
-  {
-    id: 'devopscopilot',
-    name: 'DevOpsCopilot',
-    creatorId: 'c2',
-    description: 'Automated script auditing, server logs analysis, and Dockerfile synthesis.',
-    longDescription: 'DevOpsCopilot helps systems administrators compile Kubernetes charts, audit complex shell automation commands for vulnerabilities, and extract errors from live logs.',
-    category: 'Coding',
-    tags: ['INFRASTRUCTURE', 'AUDITING', 'KUBERNETES', 'DOCKER'],
-    rating: 4.7,
-    reviewCount: 950,
-    installCount: 190000,
-    price: 299,
-    originalPrice: 499,
-    discountPercent: 40,
-    isDiscounted: true,
-    discountEndsIn: '12h 30m',
-    discountBadge: '💻 Dev Deal - 40% OFF',
-    pricingType: 'paid',
-    pricingDetails: {
-      local: '₹299 (Discount Key)',
-      cloud: 'Not Offered'
-    },
-    version: 'v2.1.0',
-    releaseDate: '2026-01-22',
-    updatedDate: '2026-07-12',
-    artwork: 'from-blue-900 to-emerald-950',
-    screenshots: [],
-    trustScore: 95,
-    trustBreakdown: {
-      performance: 96,
-      community: 92,
-      documentation: 95,
-      reliability: 97,
-      creator: 98
-    },
-    benchmarks: [
-      { name: 'Vuln Parsing Accuracy', score: 96.4 },
-      { name: 'Script Compliance', score: 94.0 },
-      { name: 'Error Log Resolving', score: 95.8 },
-      { name: 'CLI latency', score: 98.0 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'RTX 2060',
-        vram: '6 GB',
-        ram: '16 GB',
-        storage: '5.5 GB'
-      },
-      recommended: {
-        gpu: 'RTX 3060 / RX 6600',
-        vram: '8 GB',
-        ram: '16 GB',
-        storage: '6.5 GB'
-      }
-    },
-    installed: false,
-    wishlisted: false,
-    sizeOnDisk: '5.5 GB'
-  },
-  {
-    id: 'biotransformer',
-    name: 'BioTransformer X',
-    creatorId: 'c10',
-    description: 'Deep structural pharmacology and molecular binding transformer.',
-    longDescription: 'BioTransformer X analyzes small-molecule ligand affinity, predicts protein docking poses, and generates candidate pharmacophores in real time. Designed for biotechnology laboratories and computational chemists.',
-    category: 'Science',
-    tags: ['PHARMACOLOGY', 'DOCKING', 'MOLECULAR', 'SOTA'],
-    rating: 4.9,
-    reviewCount: 420,
-    installCount: 62000,
-    price: 599,
-    originalPrice: 1999,
-    discountPercent: 70,
-    isDiscounted: true,
-    discountEndsIn: '10h 25m',
-    discountBadge: '💥 Flash 70% OFF',
-    pricingType: 'paid',
-    pricingDetails: {
-      local: '₹599 (Agora Launch Deal)',
-      cloud: '₹0.50 / docking batch'
-    },
-    version: 'v2.0.1',
-    releaseDate: '2026-04-10',
-    updatedDate: '2026-08-18',
-    artwork: 'from-emerald-900 to-teal-950',
-    screenshots: [
-      'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=800&auto=format&fit=crop&q=80'
-    ],
-    trustScore: 97,
-    trustBreakdown: {
-      performance: 98,
-      community: 94,
-      documentation: 99,
-      reliability: 96,
-      creator: 99
-    },
-    benchmarks: [
-      { name: 'Docking RMSD', score: 98.1 },
-      { name: 'Affinity Score', score: 96.5 },
-      { name: 'Screening Throughput', score: 95.0 },
-      { name: 'PDB Format Accuracy', score: 99.2 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'RTX 3070',
-        vram: '8 GB',
-        ram: '32 GB',
-        storage: '16 GB'
-      },
-      recommended: {
-        gpu: 'RTX 4090 / A6000',
-        vram: '24 GB',
-        ram: '64 GB',
-        storage: '22 GB'
-      }
-    },
-    installed: false,
-    wishlisted: false,
-    sizeOnDisk: '15.6 GB'
-  },
-  {
-    id: 'synthflow-studio',
-    name: 'SynthFlow Studio',
-    creatorId: 'c5',
-    description: 'Full-stack AI music production suite with stems separation and mastering.',
-    longDescription: 'SynthFlow Studio transforms textual musical prompts and reference audio stems into broadcast-grade multitrack projects with automated mixing, compression, and spatial audio mastering.',
-    category: 'Audio',
-    tags: ['AUDIO-STUDIO', 'MULTITRACK', 'SYNTH', 'MASTERING'],
-    rating: 4.8,
-    reviewCount: 1250,
-    installCount: 220000,
-    price: 499,
-    originalPrice: 999,
-    discountPercent: 50,
-    isDiscounted: true,
-    discountEndsIn: '2d 18h',
-    discountBadge: '🔥 Studio Bundle - 50% OFF',
-    pricingType: 'paid',
-    pricingDetails: {
-      local: '₹499 Lifetime Access',
-      cloud: '₹0.05 / render minute'
-    },
-    version: 'v3.1.0',
-    releaseDate: '2026-02-20',
-    updatedDate: '2026-08-05',
-    artwork: 'from-amber-800 to-red-950',
-    screenshots: [
-      'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=800&auto=format&fit=crop&q=80'
-    ],
-    trustScore: 94,
-    trustBreakdown: {
-      performance: 96,
-      community: 93,
-      documentation: 95,
-      reliability: 92,
-      creator: 95
-    },
-    benchmarks: [
-      { name: 'Dynamic Range', score: 96.8 },
-      { name: 'Stem Isolation', score: 95.2 },
-      { name: 'Latency', score: 92.4 },
-      { name: 'Harmonic Richness', score: 97.0 }
-    ],
-    systemRequirements: {
-      minimum: {
-        gpu: 'RTX 2060 / Apple M1',
-        vram: '6 GB',
-        ram: '16 GB',
-        storage: '8 GB'
-      },
-      recommended: {
-        gpu: 'RTX 3070 / Apple M2',
-        vram: '8 GB',
-        ram: '32 GB',
-        storage: '12 GB'
-      }
-    },
-    installed: false,
-    wishlisted: true,
-    sizeOnDisk: '8.5 GB'
+    wishlisted: false
   }
 ];
 
-// 30 Mock Community Posts
+export const MODEL_TAG_GROUPS: Record<string, string[]> = {
+  'Text / Language': [
+    'Text Generation', 'Chat Completion', 'Summarization', 'Translation', 'Structured JSON', 'Embeddings'
+  ],
+  'Code & Agents': [
+    'Code Generation', 'Code Completion', 'Bug Fixing', 'Test Generation', 'Autonomous Agents', 'SQL Query'
+  ],
+  'Reasoning & Math': [
+    'Chain-of-Thought', 'Mathematical Proofs', 'Scientific Logic', 'Complex Reasoning'
+  ],
+  'Image & Vision': [
+    'Image Generation', 'Photorealism', 'OCR', 'Document AI', 'Object Detection', 'Chart Parsing'
+  ],
+  'Audio & Speech': [
+    'Text-to-Speech', 'Speech-to-Text', 'Voice Cloning', 'Streaming Audio', 'Multilingual Audio'
+  ]
+};
+
+// 12 Mock Community Posts discussing API integration, benchmark comparisons & latency
 export const mockCommunityPosts: CommunityPost[] = [
   {
-    id: 'post1',
-    modelId: 'pixelforge-xl',
-    modelName: 'PixelForge XL',
-    title: 'Best settings for product photography?',
-    content: 'Hi everyone, I am trying to generate a glass perfume bottle on a reflective black marble base. Which samplers and prompt weights work best for capturing realistic refractions? Standard settings yield slight blurred edges around the glass reflections.',
-    author: 'VisualArtisan',
+    id: 'post-1',
+    modelId: 'deepseek-r1',
+    modelName: 'DeepSeek-R1',
+    title: 'Benchmarking DeepSeek-R1 vs Claude 3.5 Sonnet on 500 hard algorithm problems',
+    content: 'We ran both models through our proprietary SWE test suite. DeepSeek-R1 solved 91.4% of competitive math proofs at 1/20th the token cost of frontier closed APIs. The reasoning chain is crystal clear.',
+    author: 'Elena Rostova',
+    authorAvatar: '👩‍💻',
+    replies: 142,
+    likes: 890,
+    timeAgo: '2 hours ago',
+    category: 'Discussions'
+  },
+  {
+    id: 'post-2',
+    modelId: 'qwen-2-5-coder-32b',
+    modelName: 'Qwen 2.5 Coder 32B',
+    title: 'How we set up a 135 tok/s code completion API gateway using ModalHub',
+    content: 'Complete tutorial on integrating Qwen 2.5 Coder via the OpenAI-compatible endpoint in VS Code Continue and Cursor. Latency dropped to 19ms TTFT!',
+    author: 'Marcus Chen',
+    authorAvatar: '⚡',
+    replies: 88,
+    likes: 620,
+    timeAgo: '5 hours ago',
+    category: 'Guides'
+  },
+  {
+    id: 'post-3',
+    modelId: 'flux-1-pro',
+    modelName: 'FLUX.1 [pro]',
+    title: 'Generating pixel-perfect typography in luxury marketing mockups (Prompts included)',
+    content: 'Here are 10 production prompts using the FLUX.1 Pro API for crisp typography and billboard quality renders without needing manual Photoshop cleanups.',
+    author: 'Sarah Jenkins',
     authorAvatar: '🎨',
-    replies: 412,
-    likes: 840,
-    timeAgo: '2h ago',
-    category: 'Discussions'
-  },
-  {
-    id: 'post2',
-    modelId: 'pixelforge-xl',
-    modelName: 'PixelForge XL',
-    title: 'PixelForge 2.4 looks insane',
-    content: 'Wow, the update that rolled out on July 28 completely fixed the text rendering issue! I can prompt complex letters, signs, and labels and it actually spells them correctly 90% of the time. Here is a compilation of fake billboard posters I generated.',
-    author: 'CyberPhotog',
-    authorAvatar: '📸',
-    replies: 187,
-    likes: 560,
-    timeAgo: '5h ago',
-    category: 'Creations',
-    imageUrl: 'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=800&auto=format&fit=crop&q=80'
-  },
-  {
-    id: 'post3',
-    modelId: 'pixelforge-xl',
-    modelName: 'PixelForge XL',
-    title: 'My workflow for cinematic portraits',
-    content: 'I have compiled a guide detailing settings for dramatic portrait lighting (Rembrandt lighting, rim highlights) using the cinematic model LoRAs. This workflow details exact CFG scales (keep it at 5.5) and prompt triggers.',
-    author: 'LensMaster',
-    authorAvatar: '🎞️',
-    replies: 94,
-    likes: 310,
-    timeAgo: 'Yesterday',
-    category: 'Guides'
-  },
-  {
-    id: 'post4',
-    modelId: 'codeforge-7b',
-    modelName: 'CodeForge 7B',
-    title: 'How to speed up local token throughput on a 3060?',
-    content: 'I am getting around 31 tokens/sec on RTX 3060. Are there any configuration flags or environment settings to push this closer to 40? I checked the hardware monitor and memory page locks seem to have slight latency overhead.',
-    author: 'CodeNode',
-    authorAvatar: '⚙️',
-    replies: 58,
-    likes: 120,
-    timeAgo: '1d ago',
-    category: 'Discussions'
-  },
-  {
-    id: 'post5',
-    modelId: 'codeforge-7b',
-    modelName: 'CodeForge 7B',
-    title: 'Benchmarking CodeForge vs reasonx-32b for shell scripts',
-    content: 'I created a set of complex Docker-compose scripts and let both models audit and optimize them. While ReasonX 32B was more thorough in explaining Docker network topology, CodeForge 7B output the actual working YAML 3x faster and without minor syntax errors.',
-    author: 'DockerDan',
-    authorAvatar: '🐳',
-    replies: 76,
-    likes: 215,
-    timeAgo: '2d ago',
-    category: 'Reviews'
-  },
-  {
-    id: 'post6',
-    modelId: 'vidcraft',
-    modelName: 'VidCraft',
-    title: 'Sci-fi short clip rendered on VidCraft',
-    content: 'Check out this 8-second render of a spacecraft gliding through neon-drenched futuristic cloud canyons. The atmospheric scattering and thruster smoke physics hold up extremely well compared to previous versions.',
-    author: 'AetherFilms',
-    authorAvatar: '🚀',
-    replies: 124,
-    likes: 410,
-    timeAgo: '2d ago',
-    category: 'Creations',
-    imageUrl: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=800&auto=format&fit=crop&q=80'
-  },
-  {
-    id: 'post7',
-    modelId: 'neuralvision-4',
-    modelName: 'NeuralVision 4',
-    title: 'Visual parsing speeds up document processing by 10x',
-    content: 'Our team set up NeuralVision 4 locally to parse structural tables and scan paper files. The localized OCR benchmarks show 98% accuracy on legacy forms, reducing manual data entry loops completely.',
-    author: 'BizOptimizer',
-    authorAvatar: '📈',
-    replies: 34,
-    likes: 95,
-    timeAgo: '3d ago',
-    category: 'Reviews'
-  },
-  {
-    id: 'post8',
-    modelId: 'pixelforge-xl',
-    modelName: 'PixelForge XL',
-    title: 'Cyberpunk street corner renders',
-    content: 'Enjoy this set of atmospheric neon-drenched alleyways at 4 AM, featuring detailed wet asphalt reflections, stylized signs, and moody lighting.',
-    author: 'NeonDreams',
-    authorAvatar: '🌃',
-    replies: 42,
-    likes: 198,
-    timeAgo: '3d ago',
-    category: 'Screenshots',
-    imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80'
-  },
-  {
-    id: 'post9',
-    modelId: 'reasonx-32b',
-    modelName: 'ReasonX 32B',
-    title: 'Solving complex algorithms step-by-step',
-    content: 'Just ran a test asking the model to optimize a travelling salesman problem variant under resource constraints. The intermediate logic chains it drafted before producing the actual code are remarkably comprehensive and clean.',
-    author: 'AlgoWiz',
-    authorAvatar: '🔢',
-    replies: 29,
-    likes: 84,
-    timeAgo: '4d ago',
-    category: 'Guides'
-  },
-  {
-    id: 'post10',
-    modelId: 'genepredict',
-    modelName: 'GenePredict',
-    title: 'Genomics researcher perspective on GenePredict v4',
-    content: 'The protein-folding GDT score of 98.7% is fully replicable! We ran it against standard experimental structures in our lab, and the spatial deviation was less than 1.4 Angstroms. This makes quick molecular screening highly accessible.',
-    author: 'BioDoc',
-    authorAvatar: '🧪',
-    replies: 51,
-    likes: 145,
-    timeAgo: '4d ago',
-    category: 'Reviews'
-  },
-  // Adding remaining 20 posts to ensure we hit 30
-  ...Array.from({ length: 20 }, (_, idx) => {
-    const postCategories: Array<'Discussions' | 'Creations' | 'Guides' | 'Screenshots' | 'Reviews'> = ['Discussions', 'Creations', 'Guides', 'Screenshots', 'Reviews'];
-    const modelPairs = [
-      { id: 'pixelforge-xl', name: 'PixelForge XL' },
-      { id: 'codeforge-7b', name: 'CodeForge 7B' },
-      { id: 'audionova', name: 'AudioNova' },
-      { id: 'neuralvision-4', name: 'NeuralVision 4' }
-    ];
-    const pair = modelPairs[idx % modelPairs.length];
-    const cat = postCategories[idx % postCategories.length];
-    return {
-      id: `post-gen-${idx}`,
-      modelId: pair.id,
-      modelName: pair.name,
-      title: `General Community Topic #${idx + 11} - ${pair.name} Help`,
-      content: `This is a mock community message detailing topics about ${pair.name}. We discuss tips, settings, hardware integration, and workflows for achieving the best outputs. Please share your experiences below!`,
-      author: `User_Gen_${idx + 100}`,
-      authorAvatar: '🤖',
-      replies: Math.floor(Math.random() * 40) + 5,
-      likes: Math.floor(Math.random() * 120) + 10,
-      timeAgo: `${idx + 5}d ago`,
-      category: cat
-    };
-  })
+    replies: 64,
+    likes: 512,
+    timeAgo: '1 day ago',
+    category: 'Creations'
+  }
 ];
 
-// 20 Mock Workshop Items
+// Mock Workshop Items (Extensions, Prompts & SDK Wrappers)
 export const mockWorkshopItems: WorkshopItem[] = [
   {
-    id: 'w1',
-    title: 'Cinematic Product LoRA',
-    modelId: 'pixelforge-xl',
-    modelName: 'PixelForge XL',
-    category: 'LoRAs',
-    author: 'NeuralForge',
-    rating: 4.9,
-    subscribers: 42000,
-    subscribed: true,
-    description: 'Improves product photography shots, adding studio softboxes, crisp rim lighting, and elegant reflective details to objects.',
-    artwork: 'from-violet-600 to-fuchsia-800'
-  },
-  {
-    id: 'w2',
-    title: 'Senior Developer System Prompt',
-    modelId: 'codeforge-7b',
-    modelName: 'CodeForge 7B',
-    category: 'Prompts',
-    author: 'CodeSmiths',
-    rating: 4.8,
-    subscribers: 18000,
-    subscribed: true,
-    description: 'Injects system parameters to enforce modular, clean, documented functions with robust unit tests and descriptive variable names.',
-    artwork: 'from-sky-700 to-indigo-800'
-  },
-  {
-    id: 'w3',
-    title: 'Anime Motion Workflow',
-    modelId: 'vidcraft',
-    modelName: 'VidCraft',
+    id: 'ws-1',
+    title: 'FastAPI Streaming Proxy for DeepSeek-R1',
+    modelId: 'deepseek-r1',
+    modelName: 'DeepSeek-R1',
     category: 'Workflows',
-    author: 'MotionVids',
-    rating: 4.7,
-    subscribers: 12000,
-    subscribed: false,
-    description: 'Compy-UI workflow template optimized to render smooth anime character motion without standard frame morphing artifacts.',
-    artwork: 'from-rose-600 to-pink-700'
-  },
-  {
-    id: 'w4',
-    title: 'Architectural Render Preset',
-    modelId: 'pixelforge-xl',
-    modelName: 'PixelForge XL',
-    category: 'Presets',
-    author: 'LensMaster',
-    rating: 4.6,
+    author: 'DevOpsForge',
+    rating: 4.9,
     subscribers: 8900,
-    subscribed: false,
-    description: 'Calibrates contrast and atmospheric scattering for photorealistic interior design shots and realistic concrete textures.',
-    artwork: 'from-amber-600 to-yellow-800'
+    subscribed: true,
+    description: 'Production-ready Python FastAPI middleware supporting SSE streaming, token rate tracking, and Redis token bucket rate limiting.',
+    artwork: 'from-blue-900 to-indigo-950'
   },
   {
-    id: 'w5',
-    title: 'Markdown Docs Parser Extension',
-    modelId: 'codeforge-7b',
-    modelName: 'CodeForge 7B',
-    category: 'Extensions',
-    author: 'LangArchitects',
-    rating: 4.8,
-    subscribers: 14500,
-    subscribed: false,
-    description: 'Direct IDE helper extension that automatically parses directory readmes to expand the models contextual coding files.',
-    artwork: 'from-cyan-600 to-teal-800'
-  },
-  {
-    id: 'w6',
-    title: 'Dark Fantasy Concept Art LoRA',
-    modelId: 'pixelforge-xl',
-    modelName: 'PixelForge XL',
-    category: 'LoRAs',
-    author: 'NeonDreams',
-    rating: 4.9,
-    subscribers: 28000,
-    subscribed: false,
-    description: 'Imbues generated characters and backgrounds with moody, gothic, high-contrast dark fantasy concept art styling.',
-    artwork: 'from-purple-800 to-violet-950'
-  },
-  {
-    id: 'w7',
-    title: 'TypeScript Refactoring Workflow',
-    modelId: 'codeforge-7b',
-    modelName: 'CodeForge 7B',
+    id: 'ws-2',
+    title: 'Next.js 15 AI SDK Adapter for Claude 3.5 & Qwen',
+    modelId: 'claude-3-5-sonnet',
+    modelName: 'Claude 3.5 Sonnet',
     category: 'Workflows',
-    author: 'DockerDan',
-    rating: 4.7,
-    subscribers: 9800,
+    author: 'FullStackGeek',
+    rating: 4.8,
+    subscribers: 12400,
     subscribed: false,
-    description: 'Specialized workflow to automatically find unused vars, typing issues, and rewrite JavaScript blocks to clean TS interfaces.',
-    artwork: 'from-blue-600 to-indigo-800'
-  },
-  {
-    id: 'w8',
-    title: 'Hyper-Realistic Vocal Preset',
-    modelId: 'audionova',
-    modelName: 'AudioNova',
-    category: 'Presets',
-    author: 'Speechify',
-    rating: 4.7,
-    subscribers: 5600,
-    subscribed: false,
-    description: 'Calibrates room reverberations and micro-breaths for dynamic audiobook recording styles.',
-    artwork: 'from-orange-600 to-red-800'
-  },
-  ...Array.from({ length: 12 }, (_, idx) => {
-    const categories: Array<'LoRAs' | 'Fine-tunes' | 'Prompts' | 'Workflows' | 'Agents' | 'Presets' | 'Extensions'> = ['LoRAs', 'Fine-tunes', 'Prompts', 'Workflows', 'Agents', 'Presets', 'Extensions'];
-    const modelPairs = [
-      { id: 'pixelforge-xl', name: 'PixelForge XL' },
-      { id: 'codeforge-7b', name: 'CodeForge 7B' },
-      { id: 'neuralvision-4', name: 'NeuralVision 4' }
-    ];
-    const pair = modelPairs[idx % modelPairs.length];
-    const cat = categories[idx % categories.length];
-    return {
-      id: `workshop-gen-${idx}`,
-      title: `Community ${cat} #${idx + 9} for ${pair.name}`,
-      modelId: pair.id,
-      modelName: pair.name,
-      category: cat,
-      author: `Modder_${idx + 10}`,
-      rating: Number((4.2 + (idx % 8) * 0.1).toFixed(1)),
-      subscribers: Math.floor(Math.random() * 8000) + 1200,
-      subscribed: false,
-      description: `A useful customized ${cat} file curated by the community to enhance ${pair.name} productivity. Highly recommended for daily use.`,
-      artwork: 'from-slate-700 to-slate-900'
-    };
-  })
+    description: 'Drop-in provider configuration for Vercel AI SDK with automatic fallback routing and response caching.',
+    artwork: 'from-amber-900 to-slate-950'
+  }
 ];

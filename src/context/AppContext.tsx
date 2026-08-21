@@ -12,24 +12,20 @@ import type {
   CommunityPost,
   WorkshopItem
 } from '../data/mockData';
-import { MockDeploymentService } from '../services/MockDeploymentService';
-import type { Deployment, DeploymentDraft } from '../data/deploymentData';
 
 export type ViewType =
   | 'store'
   | 'discover'
-  | 'discounts'
-  | 'library'
+  | 'compare'
+  | 'cart'
+  | 'checkout-success'
+  | 'my-apis'
+  | 'model-detail'
+  | 'try'
   | 'workshop'
   | 'community'
-  | 'model-detail'
   | 'creator'
-  | 'wishlist'
-  | 'try'
-  | 'launch'
-  | 'deployment-wizard'
-  | 'deployments'
-  | 'deployment-detail';
+  | 'wishlist';
 
 export interface Toast {
   id: string;
@@ -46,6 +42,42 @@ export interface NotificationItem {
   type: 'discount' | 'update' | 'system';
 }
 
+export interface CartItem {
+  modelId: string;
+  accessTier: 'pay-as-you-go' | 'provisioned-throughput' | 'enterprise-sla';
+  monthlyTokenBudget: number; // e.g. 5,000,000 tokens
+  region: string; // e.g. 'us-east-1 (N. Virginia)'
+  estimatedMonthlyCost: number;
+  rateLimitRpm: number;
+  addedAt: string;
+}
+
+export interface ActiveApi {
+  id: string;
+  modelId: string;
+  apiKey: string; // Demo / Placeholder API Key
+  status: 'active' | 'sandboxed';
+  accessType: 'Pay-as-you-go' | 'Provisioned';
+  endpoint: string;
+  totalRequests: number;
+  tokensUsed: number;
+  spendUsd: number;
+  quotaUsd: number;
+  region: string;
+  rateLimitRpm: number;
+  rateLimitTpm: number;
+  activatedAt: string;
+}
+
+export interface CheckoutResult {
+  provisionedApis: ActiveApi[];
+  models: Model[];
+  totalEstimatedMonthlyCost: number;
+  organizationName: string;
+  rateTier: string;
+  orderNumber: string;
+}
+
 interface AppContextType {
   models: Model[];
   creators: Creator[];
@@ -59,22 +91,32 @@ interface AppContextType {
   toasts: Toast[];
   notifications: NotificationItem[];
   followedCreatorIds: string[];
-  activeLaunchModelId: string | null;
-  downloadingModelId: string | null;
-  downloadProgress: number;
-  downloadStep: string;
-  showGetModelModal: boolean;
-  getModelModalId: string | null;
-  deployments: Deployment[];
-  selectedDeploymentId: string | null;
-  isModelOwned: (modelId: string) => boolean;
-  startDeployment: (modelId: string) => void;
-  deployModel: (draft: DeploymentDraft) => Promise<Deployment | undefined>;
-  updateDeployment: (id: string, updates: Partial<Deployment>) => Promise<void>;
-  regenerateApiKey: (id: string) => Promise<void>;
-  deleteDeployment: (id: string) => Promise<void>;
-  setSelectedDeploymentId: (id: string | null) => void;
-
+  
+  // API Access Cart
+  cart: CartItem[];
+  addToCart: (modelId: string, accessTier?: CartItem['accessTier'], monthlyTokens?: number) => void;
+  removeFromCart: (modelId: string) => void;
+  updateCartItem: (modelId: string, updates: Partial<CartItem>) => void;
+  clearCart: () => void;
+  isInCart: (modelId: string) => boolean;
+  
+  // Model Comparison
+  comparisonModelIds: string[];
+  addToCompare: (modelId: string) => void;
+  removeFromCompare: (modelId: string) => void;
+  toggleCompare: (modelId: string) => void;
+  isInCompare: (modelId: string) => boolean;
+  clearCompare: () => void;
+  
+  // Active API Access (My APIs)
+  activeApis: ActiveApi[];
+  lastCheckoutResult: CheckoutResult | null;
+  confirmApiAccessCheckout: (params: { orgName: string; rateTier: string; region: string }) => CheckoutResult;
+  hasActiveApi: (modelId: string) => boolean;
+  revokeApiAccess: (apiId: string) => void;
+  regenerateApiKey: (apiId: string) => void;
+  
+  // Navigation & Core Actions
   setView: (view: ViewType) => void;
   setSelectedModelId: (id: string) => void;
   setSelectedCreatorId: (id: string) => void;
@@ -85,95 +127,354 @@ interface AppContextType {
   toggleWishlist: (modelId: string) => void;
   toggleFollowCreator: (creatorId: string) => void;
   toggleSubscribeWorkshop: (itemId: string) => void;
-  startInstall: (modelId: string) => void;
-  uninstallModel: (modelId: string) => void;
-  launchModel: (modelId: string) => void;
-  closeLauncher: () => void;
-  openGetModelModal: (modelId: string) => void;
-  closeGetModelModal: () => void;
   addCommunityPost: (modelId: string, modelName: string, category: CommunityPost['category'], title: string, content: string) => void;
   markNotificationsRead: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Initial pre-configured active APIs for demo exploration
+const initialActiveApis: ActiveApi[] = [
+  {
+    id: 'api-init-1',
+    modelId: 'deepseek-r1',
+    apiKey: 'mh_live_demo_sk_94a8f219b48e426cb78912aa',
+    status: 'active',
+    accessType: 'Pay-as-you-go',
+    endpoint: 'https://api.modalhub.ai/v1/chat/completions',
+    totalRequests: 1842,
+    tokensUsed: 4280000,
+    spendUsd: 1.84,
+    quotaUsd: 50.00,
+    region: 'us-east-1 (N. Virginia)',
+    rateLimitRpm: 500,
+    rateLimitTpm: 100000,
+    activatedAt: '2026-02-14'
+  },
+  {
+    id: 'api-init-2',
+    modelId: 'qwen-2-5-coder-32b',
+    apiKey: 'mh_live_demo_sk_7811ef9321c8901af0032b4e',
+    status: 'active',
+    accessType: 'Pay-as-you-go',
+    endpoint: 'https://api.modalhub.ai/v1/chat/completions',
+    totalRequests: 4910,
+    tokensUsed: 8900000,
+    spendUsd: 3.78,
+    quotaUsd: 50.00,
+    region: 'us-east-1 (N. Virginia)',
+    rateLimitRpm: 500,
+    rateLimitTpm: 100000,
+    activatedAt: '2026-02-18'
+  }
+];
+
 export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { profile, user } = useAuth();
+  const { user } = useAuth();
   const [models, setModels] = useState<Model[]>(mockModels);
-  const [creators, setCreators] = useState<Creator[]>(mockCreators);
+  const [creators] = useState<Creator[]>(mockCreators);
   const [posts, setPosts] = useState<CommunityPost[]>(mockCommunityPosts);
   const [workshopItems, setWorkshopItems] = useState<WorkshopItem[]>(mockWorkshopItems);
   const [currentView, setViewInternal] = useState<ViewType>('store');
-  const [selectedModelId, setSelectedModelId] = useState<string>('pixelforge-xl');
-  const [selectedCreatorId, setSelectedCreatorId] = useState<string>('c1');
+  const [selectedModelId, setSelectedModelId] = useState<string>('deepseek-r1');
+  const [selectedCreatorId, setSelectedCreatorId] = useState<string>('c3');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [followedCreatorIds, setFollowedCreatorIds] = useState<string[]>(['c2', 'c3']); // pre-followed
-  const [activeLaunchModelId, setActiveLaunchModelId] = useState<string | null>(null);
+  const [followedCreatorIds, setFollowedCreatorIds] = useState<string[]>(['c2', 'c3']);
 
-  // Install system states
-  const [downloadingModelId, setDownloadingModelId] = useState<string | null>(null);
-  const [downloadProgress, setDownloadProgress] = useState<number>(0);
-  const [downloadStep, setDownloadStep] = useState<string>('');
-  const [showGetModelModal, setShowGetModelModal] = useState<boolean>(false);
-  const [getModelModalId, setGetModelModalId] = useState<string | null>(null);
-  const [deployments, setDeployments] = useState<Deployment[]>([]);
-  const [selectedDeploymentId, setSelectedDeploymentId] = useState<string | null>(null);
+  // Cart State (Pre-seeded with 1 item for immediate rich demo)
+  const [cart, setCart] = useState<CartItem[]>([
+    {
+      modelId: 'claude-3-5-sonnet',
+      accessTier: 'pay-as-you-go',
+      monthlyTokenBudget: 5000000,
+      region: 'us-east-1 (N. Virginia)',
+      estimatedMonthlyCost: 45.00,
+      rateLimitRpm: 500,
+      addedAt: new Date().toISOString()
+    }
+  ]);
+
+  // Comparison State (Pre-seeded with 2 models for instant comparison demo)
+  const [comparisonModelIds, setComparisonModelIds] = useState<string[]>([
+    'deepseek-r1',
+    'claude-3-5-sonnet'
+  ]);
+
+  // Active APIs (My APIs)
+  const [activeApis, setActiveApis] = useState<ActiveApi[]>(() => {
+    const saved = localStorage.getItem('agora_active_apis');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return initialActiveApis;
+      }
+    }
+    return initialActiveApis;
+  });
+
+  const [lastCheckoutResult, setLastCheckoutResult] = useState<CheckoutResult | null>(null);
+
+  // Sync active APIs to localStorage
+  useEffect(() => {
+    localStorage.setItem('agora_active_apis', JSON.stringify(activeApis));
+  }, [activeApis]);
 
   // Mock Notification Feed
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
       id: 'n1',
-      title: 'Agora Flash Deals: Up to 70% Off AI Models!',
-      content: 'Grab PixelForge XL, BioTransformer X, and VidCraft at massive discounts in the Agora Deals hub.',
-      time: '3 hours ago',
+      title: 'New API Endpoints Live: DeepSeek-R1 & Qwen 2.5 Coder',
+      content: 'Access ultra-low token pricing with OpenAI-compatible SSE streaming endpoints and 128K context.',
+      time: '1 hour ago',
       read: false,
-      type: 'discount'
+      type: 'update'
     },
     {
       id: 'n2',
-      title: 'NeuralVision 4 released update v4.1.2',
-      content: 'Check the new benchmarks. OCR performance improved by 14% on RTX 3060.',
+      title: 'Prompt Caching Enabled on Claude 3.5 Sonnet',
+      content: 'Enjoy a 90% discount on cached input tokens for recurring multi-turn agent contexts.',
       time: '1 day ago',
       read: false,
       type: 'update'
     },
     {
       id: 'n3',
-      title: 'Workshop Alert: Cinematic Product LoRA updated',
-      content: 'Creator NeuralForge updated the parameters to support wide aspect ratios.',
+      title: 'Free $50 Demo Credits Activated',
+      content: 'Your sandbox account includes $50 demo credits to test any foundation model API.',
       time: '2 days ago',
       read: true,
-      type: 'update'
+      type: 'system'
     }
   ]);
 
-  const setView = (view: ViewType) => {
-    setViewInternal(view);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
+  // Toast dispatch helper
   const addToast = (message: string, type: Toast['type'] = 'info') => {
-    const id = Math.random().toString(36).substr(2, 9);
+    const id = `toast-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => removeToast(id), 4000);
   };
 
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
+  // Safe navigation setter
+  const setView = (view: ViewType) => {
+    setViewInternal(view);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Helper to calculate monthly estimate
+  const calculateEstimatedCost = (model: Model, tokens: number): number => {
+    // Standard assume 40% input tokens, 60% output tokens
+    const inputTokens = tokens * 0.4;
+    const outputTokens = tokens * 0.6;
+    const inCost = (inputTokens / 1000000) * model.inputPricePerMillion;
+    const outCost = (outputTokens / 1000000) * model.outputPricePerMillion;
+    return Math.max(0.50, Number((inCost + outCost).toFixed(2)));
+  };
+
+  // 1. Cart Management
+  const addToCart = (
+    modelId: string,
+    accessTier: CartItem['accessTier'] = 'pay-as-you-go',
+    monthlyTokens = 5000000
+  ) => {
+    const model = models.find((m) => m.id === modelId);
+    if (!model) return;
+
+    if (cart.some((item) => item.modelId === modelId)) {
+      addToast(`${model.name} API access is already in your cart.`, 'info');
+      return;
+    }
+
+    const estimatedMonthlyCost = calculateEstimatedCost(model, monthlyTokens);
+    const newItem: CartItem = {
+      modelId,
+      accessTier,
+      monthlyTokenBudget: monthlyTokens,
+      region: 'us-east-1 (N. Virginia)',
+      estimatedMonthlyCost,
+      rateLimitRpm: 500,
+      addedAt: new Date().toISOString()
+    };
+
+    setCart((prev) => [...prev, newItem]);
+    addToast(`Added ${model.name} API access to your cart.`, 'success');
+  };
+
+  const removeFromCart = (modelId: string) => {
+    const model = models.find((m) => m.id === modelId);
+    setCart((prev) => prev.filter((item) => item.modelId !== modelId));
+    addToast(`Removed ${model?.name || 'model'} API access from cart.`, 'info');
+  };
+
+  const updateCartItem = (modelId: string, updates: Partial<CartItem>) => {
+    const model = models.find((m) => m.id === modelId);
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.modelId === modelId) {
+          const updated = { ...item, ...updates };
+          if (updates.monthlyTokenBudget && model) {
+            updated.estimatedMonthlyCost = calculateEstimatedCost(model, updates.monthlyTokenBudget);
+          }
+          return updated;
+        }
+        return item;
+      })
+    );
+  };
+
+  const clearCart = () => {
+    setCart([]);
+  };
+
+  const isInCart = (modelId: string): boolean => {
+    return cart.some((item) => item.modelId === modelId);
+  };
+
+  // 2. Comparison Management
+  const addToCompare = (modelId: string) => {
+    const model = models.find((m) => m.id === modelId);
+    if (!model) return;
+
+    if (comparisonModelIds.includes(modelId)) {
+      addToast(`${model.name} is already in the comparison table.`, 'info');
+      return;
+    }
+
+    if (comparisonModelIds.length >= 4) {
+      addToast('You can compare up to 4 AI models side-by-side. Please remove one first.', 'warning');
+      return;
+    }
+
+    setComparisonModelIds((prev) => [...prev, modelId]);
+    addToast(`Added ${model.name} to comparison table.`, 'success');
+  };
+
+  const removeFromCompare = (modelId: string) => {
+    const model = models.find((m) => m.id === modelId);
+    setComparisonModelIds((prev) => prev.filter((id) => id !== modelId));
+    addToast(`Removed ${model?.name || 'model'} from comparison.`, 'info');
+  };
+
+  const toggleCompare = (modelId: string) => {
+    if (comparisonModelIds.includes(modelId)) {
+      removeFromCompare(modelId);
+    } else {
+      addToCompare(modelId);
+    }
+  };
+
+  const isInCompare = (modelId: string): boolean => {
+    return comparisonModelIds.includes(modelId);
+  };
+
+  const clearCompare = () => {
+    setComparisonModelIds([]);
+    addToast('Cleared comparison list.', 'info');
+  };
+
+  // 3. Demo Checkout & API Provisioning
+  const confirmApiAccessCheckout = (params: {
+    orgName: string;
+    rateTier: string;
+    region: string;
+  }): CheckoutResult => {
+    const selectedCartModels = cart
+      .map((item) => models.find((m) => m.id === item.modelId))
+      .filter(Boolean) as Model[];
+
+    const newActiveApis: ActiveApi[] = cart.map((cartItem) => {
+      const model = models.find((m) => m.id === cartItem.modelId);
+      const randomHex = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+      const isEnterprise = params.rateTier.toLowerCase().includes('enterprise');
+
+      return {
+        id: `api-${Date.now()}-${cartItem.modelId}`,
+        modelId: cartItem.modelId,
+        apiKey: `mh_live_demo_sk_${randomHex}`,
+        status: 'active',
+        accessType: cartItem.accessTier === 'provisioned-throughput' ? 'Provisioned' : 'Pay-as-you-go',
+        endpoint: model?.endpoint || 'https://api.modalhub.ai/v1/chat/completions',
+        totalRequests: 0,
+        tokensUsed: 0,
+        spendUsd: 0.00,
+        quotaUsd: 50.00,
+        region: params.region || cartItem.region,
+        rateLimitRpm: isEnterprise ? 2000 : 500,
+        rateLimitTpm: isEnterprise ? 500000 : 100000,
+        activatedAt: new Date().toISOString().split('T')[0]
+      };
+    });
+
+    const totalEstimatedMonthlyCost = cart.reduce((sum, item) => sum + item.estimatedMonthlyCost, 0);
+
+    // Merge with existing active APIs, replacing older entries for same model
+    setActiveApis((prev) => {
+      const existingFiltered = prev.filter(
+        (existing) => !newActiveApis.some((newItem) => newItem.modelId === existing.modelId)
+      );
+      return [...existingFiltered, ...newActiveApis];
+    });
+
+    const result: CheckoutResult = {
+      provisionedApis: newActiveApis,
+      models: selectedCartModels,
+      totalEstimatedMonthlyCost,
+      organizationName: params.orgName || 'Developer Sandbox Org',
+      rateTier: params.rateTier,
+      orderNumber: `MH-API-${Math.floor(100000 + Math.random() * 900000)}`
+    };
+
+    setLastCheckoutResult(result);
+    clearCart();
+    setView('checkout-success');
+    addToast('API Access provisioned successfully! Demo endpoints are ready.', 'success');
+
+    return result;
+  };
+
+  const hasActiveApi = (modelId: string): boolean => {
+    return activeApis.some((api) => api.modelId === modelId);
+  };
+
+  const revokeApiAccess = (apiId: string) => {
+    const api = activeApis.find((a) => a.id === apiId);
+    const model = models.find((m) => m.id === api?.modelId);
+    setActiveApis((prev) => prev.filter((a) => a.id !== apiId));
+    addToast(`Revoked API access credentials for ${model?.name || 'model'}.`, 'info');
+  };
+
+  const regenerateApiKey = (apiId: string) => {
+    const randomHex = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+    setActiveApis((prev) =>
+      prev.map((api) => {
+        if (api.id === apiId) {
+          return {
+            ...api,
+            apiKey: `mh_live_demo_sk_${randomHex}`
+          };
+        }
+        return api;
+      })
+    );
+    addToast('Regenerated new Demo API Key.', 'success');
+  };
+
+  // 4. Wishlist & Socials
   const toggleWishlist = (modelId: string) => {
     setModels((prev) =>
       prev.map((m) => {
         if (m.id === modelId) {
-          const newState = !m.wishlisted;
+          const nextState = !m.wishlisted;
           addToast(
-            newState ? `Added ${m.name} to Wishlist` : `Removed ${m.name} from Wishlist`,
-            newState ? 'success' : 'info'
+            nextState ? `Saved ${m.name} to your Wishlist` : `Removed ${m.name} from Wishlist`,
+            nextState ? 'success' : 'info'
           );
-          return { ...m, wishlisted: newState };
+          return { ...m, wishlisted: nextState };
         }
         return m;
       })
@@ -181,196 +482,35 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const toggleFollowCreator = (creatorId: string) => {
+    const creator = creators.find((c) => c.id === creatorId);
     setFollowedCreatorIds((prev) => {
-      const isFollowing = prev.includes(creatorId);
-      const creatorName = creators.find((c) => c.id === creatorId)?.name || 'Creator';
-      
-      // Update creator stats
-      setCreators((cList) =>
-        cList.map((c) => {
-          if (c.id === creatorId) {
-            return { ...c, followers: c.followers + (isFollowing ? -1 : 1) };
-          }
-          return c;
-        })
+      const isFollowed = prev.includes(creatorId);
+      addToast(
+        isFollowed ? `Unfollowed ${creator?.name}` : `Followed ${creator?.name}`,
+        'info'
       );
-
-      if (isFollowing) {
-        addToast(`Unfollowed ${creatorName}`, 'info');
-        return prev.filter((id) => id !== creatorId);
-      } else {
-        addToast(`Successfully followed ${creatorName}`, 'success');
-        return [...prev, creatorId];
-      }
+      return isFollowed ? prev.filter((id) => id !== creatorId) : [...prev, creatorId];
     });
   };
 
   const toggleSubscribeWorkshop = (itemId: string) => {
     setWorkshopItems((prev) =>
-      prev.map((w) => {
-        if (w.id === itemId) {
-          const newState = !w.subscribed;
+      prev.map((item) => {
+        if (item.id === itemId) {
+          const next = !item.subscribed;
           addToast(
-            newState ? `Subscribed to ${w.title}` : `Unsubscribed from ${w.title}`,
-            newState ? 'success' : 'info'
+            next ? `Subscribed to ${item.title}` : `Unsubscribed from ${item.title}`,
+            next ? 'success' : 'info'
           );
           return {
-            ...w,
-            subscribed: newState,
-            subscribers: w.subscribers + (newState ? 1 : -1)
+            ...item,
+            subscribed: next,
+            subscribers: next ? item.subscribers + 1 : Math.max(0, item.subscribers - 1)
           };
         }
-        return w;
+        return item;
       })
     );
-  };
-
-  const startInstall = (modelId: string) => {
-    const model = models.find((m) => m.id === modelId);
-    if (!model) return;
-
-    setShowGetModelModal(false); // Close get model helper modal if open
-    setModels((prev) => prev.map((item) => item.id === modelId ? { ...item, owned: true } : item));
-    setDownloadingModelId(modelId);
-    setDownloadProgress(0);
-    setDownloadStep('Initializing peer connections...');
-
-    addToast(`Starting installation of ${model.name}...`, 'info');
-  };
-
-  // Simulated download progress loop
-  useEffect(() => {
-    if (!downloadingModelId) return;
-
-    const interval = setInterval(() => {
-      setDownloadProgress((prev) => {
-        const next = prev + Math.floor(Math.random() * 8) + 4;
-        if (next >= 100) {
-          clearInterval(interval);
-          setModels((prevModels) =>
-            prevModels.map((m) => {
-              if (m.id === downloadingModelId) {
-                return { ...m, installed: true, hardwareStatus: 'Ready' };
-              }
-              return m;
-            })
-          );
-          setTimeout(() => {
-            const mName = models.find((m) => m.id === downloadingModelId)?.name || 'Model';
-            addToast(`Successfully installed ${mName}! Ready to launch.`, 'success');
-            setDownloadingModelId(null);
-            setDownloadProgress(0);
-            setDownloadStep('');
-          }, 500);
-          return 100;
-        }
-
-        // Update step titles based on progress percentages
-        if (next < 25) {
-          setDownloadStep(`Resolving tensor dependencies... (${next}%)`);
-        } else if (next < 55) {
-          setDownloadStep(`Downloading weights... ${models.find(m => m.id === downloadingModelId)?.sizeOnDisk} (${next}%)`);
-        } else if (next < 85) {
-          setDownloadStep(`Compiling GPU shaders and allocating VRAM buffers... (${next}%)`);
-        } else {
-          setDownloadStep(`Running local security and weight verification scan... (${next}%)`);
-        }
-
-        return next;
-      });
-    }, 250);
-
-    return () => clearInterval(interval);
-  }, [downloadingModelId, models]);
-
-  const uninstallModel = (modelId: string) => {
-    setModels((prev) =>
-      prev.map((m) => {
-        if (m.id === modelId) {
-          addToast(`Uninstalled ${m.name} from local storage.`, 'info');
-          return { ...m, installed: false, hardwareStatus: undefined };
-        }
-        return m;
-      })
-    );
-    if (activeLaunchModelId === modelId) {
-      setActiveLaunchModelId(null);
-    }
-  };
-
-  const launchModel = (modelId: string) => {
-    const model = models.find((m) => m.id === modelId);
-    if (!model) return;
-
-    if (!model.installed) {
-      addToast(`Please install ${model.name} first before launching.`, 'warning');
-      return;
-    }
-
-    setActiveLaunchModelId(modelId);
-    setView('launch');
-    addToast(`Launched ${model.name} locally. Ready for inference.`, 'success');
-  };
-
-  const closeLauncher = () => {
-    setActiveLaunchModelId(null);
-    setView('library');
-  };
-
-  const openGetModelModal = (modelId: string) => {
-    setGetModelModalId(modelId);
-    setShowGetModelModal(true);
-  };
-
-  const closeGetModelModal = () => {
-    setGetModelModalId(null);
-    setShowGetModelModal(false);
-  };
-
-  const isModelOwned = (modelId: string) => {
-    const model = models.find((item) => item.id === modelId);
-    return Boolean(model?.owned || model?.installed);
-  };
-
-  const startDeployment = (modelId: string) => {
-    if (!isModelOwned(modelId)) {
-      addToast('Get this model first to unlock deployment.', 'warning');
-      openGetModelModal(modelId);
-      return;
-    }
-    setSelectedModelId(modelId);
-    setView('deployment-wizard');
-  };
-
-  const deployModel = async (draft: DeploymentDraft) => {
-    const model = models.find((item) => item.id === draft.modelId);
-    if (!model || !isModelOwned(model.id)) return undefined;
-    const deployment = await MockDeploymentService.deployModel(draft, model.version);
-    setDeployments((prev) => [deployment, ...prev]);
-    setSelectedDeploymentId(deployment.id);
-    addToast('Deployment started', 'info');
-    return deployment;
-  };
-
-  const updateDeployment = async (id: string, updates: Partial<Deployment>) => {
-    const updated = await MockDeploymentService.updateDeployment(id, updates);
-    if (updated) setDeployments((prev) => prev.map((item) => item.id === id ? updated : item));
-  };
-
-  const regenerateApiKey = async (id: string) => {
-    const updated = await MockDeploymentService.regenerateApiKey(id);
-    if (updated) {
-      setDeployments((prev) => prev.map((item) => item.id === id ? updated : item));
-      addToast('New mock API key generated.', 'success');
-    }
-  };
-
-  const deleteDeployment = async (id: string) => {
-    await MockDeploymentService.deleteDeployment(id);
-    setDeployments((prev) => prev.filter((item) => item.id !== id));
-    setSelectedDeploymentId(null);
-    setView('deployments');
-    addToast('Deployment stopped', 'info');
   };
 
   const addCommunityPost = (
@@ -380,25 +520,21 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     title: string,
     content: string
   ) => {
-    const authorName = profile?.display_name || user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'You (Agora AI Geek)';
-    const authorAvatar = profile?.avatar_url || user?.user_metadata?.avatar_url || '🛸';
-
     const newPost: CommunityPost = {
-      id: `post-user-${Date.now()}`,
+      id: `post-${Date.now()}`,
       modelId,
       modelName,
       title,
       content,
-      author: authorName,
-      authorAvatar: authorAvatar,
+      author: user?.email?.split('@')[0] || 'AI Geek',
+      authorAvatar: '🛸',
       replies: 0,
-      likes: 0,
+      likes: 1,
       timeAgo: 'Just now',
       category
     };
-
     setPosts((prev) => [newPost, ...prev]);
-    addToast('Post submitted successfully to community!', 'success');
+    addToast('Post published to Agora developer community!', 'success');
   };
 
   const markNotificationsRead = () => {
@@ -420,14 +556,32 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         toasts,
         notifications,
         followedCreatorIds,
-        activeLaunchModelId,
-        downloadingModelId,
-        downloadProgress,
-        downloadStep,
-        showGetModelModal,
-        getModelModalId,
-        deployments,
-        selectedDeploymentId,
+
+        // Cart
+        cart,
+        addToCart,
+        removeFromCart,
+        updateCartItem,
+        clearCart,
+        isInCart,
+
+        // Compare
+        comparisonModelIds,
+        addToCompare,
+        removeFromCompare,
+        toggleCompare,
+        isInCompare,
+        clearCompare,
+
+        // My APIs
+        activeApis,
+        lastCheckoutResult,
+        confirmApiAccessCheckout,
+        hasActiveApi,
+        revokeApiAccess,
+        regenerateApiKey,
+
+        // Navigation & Core
         setView,
         setSelectedModelId,
         setSelectedCreatorId,
@@ -438,19 +592,6 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         toggleWishlist,
         toggleFollowCreator,
         toggleSubscribeWorkshop,
-        startInstall,
-        uninstallModel,
-        launchModel,
-        closeLauncher,
-        openGetModelModal,
-        closeGetModelModal,
-        isModelOwned,
-        startDeployment,
-        deployModel,
-        updateDeployment,
-        regenerateApiKey,
-        deleteDeployment,
-        setSelectedDeploymentId,
         addCommunityPost,
         markNotificationsRead
       }}

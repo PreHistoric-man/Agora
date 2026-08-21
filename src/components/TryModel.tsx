@@ -183,9 +183,9 @@ export const TryModel: React.FC<TryModelProps> = ({ embedMode = false, presetMod
   };
 
   const costCalculation = () => {
-    // Dynamic fake cost based on quality steps, outputs, and cloud rates
-    const modelRate = modelA.pricingType === 'free' ? 0 : 0.08;
-    return Number((modelRate * numOutputs * (qualitySteps / 50)).toFixed(2));
+    // Dynamic fake cost based on quality steps, outputs, and token rates
+    const modelRate = modelA.inputPricePerMillion ? (modelA.inputPricePerMillion / 1000) : 0.002;
+    return Number((modelRate * numOutputs * (qualitySteps / 50)).toFixed(4));
   };
 
   return (
@@ -408,7 +408,7 @@ export const TryModel: React.FC<TryModelProps> = ({ embedMode = false, presetMod
                 <div className="flex items-center gap-3 font-sans text-[10px] text-slate-500">
                   <span>Latency: <strong className="text-slate-300">{generationTime || '8.4'} sec</strong></span>
                   <span className="h-3 w-px bg-white/10"></span>
-                  <span>Est. Charge: <strong className="text-slate-300">₹{costCalculation()}</strong></span>
+                  <span>Est. Charge: <strong className="text-slate-300">${costCalculation()}</strong></span>
                 </div>
               )}
             </div>

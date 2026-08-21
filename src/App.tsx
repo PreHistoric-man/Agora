@@ -4,18 +4,16 @@ import { AuthProvider } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { StoreHome } from './components/StoreHome';
 import { Discover } from './components/Discover';
-import { Library } from './components/Library';
+import { Compare } from './components/Compare';
+import { Cart } from './components/Cart';
+import { CheckoutSuccess } from './components/CheckoutSuccess';
+import { MyApis } from './components/MyApis';
+import { ModelDetail } from './components/ModelDetail';
+import { TryModel } from './components/TryModel';
+import { Wishlist } from './components/Wishlist';
 import { Workshop } from './components/Workshop';
 import { Community } from './components/Community';
-import { ModelDetail } from './components/ModelDetail';
 import { CreatorProfile } from './components/CreatorProfile';
-import { Wishlist } from './components/Wishlist';
-import { Discounts } from './components/Discounts';
-import { TryModel } from './components/TryModel';
-import { ModelLauncher } from './components/ModelLauncher';
-import { DeploymentWizard } from './components/DeploymentWizard';
-import { Deployments } from './components/Deployments';
-import { DeploymentDetail } from './components/DeploymentDetail';
 import { ToastStack, ModalsManager } from './components/ModalsAndToasts';
 import { AuthModal } from './components/AuthModal';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -27,62 +25,34 @@ const AppInner: React.FC = () => {
     switch (currentView) {
       case 'discover':
         return <Discover />;
-      case 'discounts':
-        return <Discounts />;
-      case 'library':
+      case 'compare':
+        return <Compare />;
+      case 'cart':
+        return <Cart />;
+      case 'checkout-success':
+        return <CheckoutSuccess />;
+      case 'my-apis':
         return (
           <ProtectedRoute
-            title="My AI Model Library"
-            description="Manage your downloaded weights, local compilation runtimes, and licensed hardware keys."
-            targetViewName="library"
+            title="My APIs Dashboard"
+            description="Manage your active AI model API subscriptions, rotate sandbox keys, and inspect SDK code."
+            targetViewName="my-apis"
           >
-            <Library />
+            <MyApis />
           </ProtectedRoute>
         );
+      case 'model-detail':
+        return <ModelDetail />;
+      case 'try':
+        return <TryModel />;
+      case 'wishlist':
+        return <Wishlist />;
       case 'workshop':
         return <Workshop />;
       case 'community':
         return <Community />;
-      case 'model-detail':
-        return <ModelDetail />;
       case 'creator':
         return <CreatorProfile />;
-      case 'wishlist':
-        return <Wishlist />;
-      case 'try':
-        return <TryModel />;
-      case 'launch':
-        return <ModelLauncher />;
-      case 'deployment-wizard':
-        return (
-          <ProtectedRoute
-            title="Deploy Model API"
-            description="Configure serverless hardware clusters, dedicated endpoints, and custom API authorization tokens."
-            targetViewName="deployment-wizard"
-          >
-            <DeploymentWizard />
-          </ProtectedRoute>
-        );
-      case 'deployments':
-        return (
-          <ProtectedRoute
-            title="Deployments & Cloud Endpoints"
-            description="Monitor live inference traffic, manage API keys, and track production latency."
-            targetViewName="deployments"
-          >
-            <Deployments />
-          </ProtectedRoute>
-        );
-      case 'deployment-detail':
-        return (
-          <ProtectedRoute
-            title="Deployment Analytics & Keys"
-            description="Access your dedicated endpoint URL, telemetry graphs, and client SDK code."
-            targetViewName="deployment-detail"
-          >
-            <DeploymentDetail />
-          </ProtectedRoute>
-        );
       case 'store':
       default:
         return <StoreHome />;
@@ -95,8 +65,8 @@ const AppInner: React.FC = () => {
       <div className="fixed top-0 left-1/4 w-96 h-96 rounded-full bg-cyan-500/5 blur-3xl pointer-events-none z-0"></div>
       <div className="fixed bottom-0 right-1/4 w-96 h-96 rounded-full bg-violet-500/5 blur-3xl pointer-events-none z-0"></div>
 
-      {/* Render Navigation unless Launcher view is active */}
-      {currentView !== 'launch' && <Navbar />}
+      {/* Render Top Navigation */}
+      <Navbar />
 
       {/* Main viewport */}
       <main className="flex-grow z-10">
