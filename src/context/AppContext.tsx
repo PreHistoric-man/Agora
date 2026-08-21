@@ -14,7 +14,11 @@ import type {
 } from '../data/mockData';
 import { ModelService } from '../services/ModelService';
 import { LibraryService } from '../services/LibraryService';
+import { DeploymentService } from '../services/DeploymentService';
+import { awsConnectionService } from '../services/AwsConnectionService';
 import type { LibraryItem, DeploymentStatus } from '../types/library';
+import type { Deployment, DeploymentDraft } from '../types/deployment';
+import type { AwsConnection, VerifyAwsRoleResponse } from '../types/aws';
 
 export type ViewType =
   | 'store'
@@ -117,6 +121,34 @@ interface AppContextType {
     }
   ) => Promise<{ success: boolean; error?: string }>;
   refreshLibrary: () => Promise<void>;
+
+  // AI Model Deployments (Supabase Persistence)
+  deployments: Deployment[];
+  deploymentsLoading: boolean;
+  wizardModelId: string | null;
+  selectedDeploymentId: string | null;
+  openDeploymentWizard: (modelId: string) => void;
+  closeDeploymentWizard: () => void;
+  openDeploymentDetails: (deploymentId: string) => void;
+  closeDeploymentDetails: () => void;
+  refreshDeployments: () => Promise<void>;
+  createDeployment: (draft: DeploymentDraft) => Promise<{ success: boolean; deployment?: Deployment; error?: string }>;
+  stopDeployment: (id: string) => Promise<{ success: boolean; error?: string }>;
+  terminateDeployment: (id: string) => Promise<{ success: boolean; error?: string }>;
+  deleteDeployment: (id: string) => Promise<{ success: boolean; error?: string }>;
+
+  // AWS Account Connection (Phase 2A IAM Cross-Account Verification)
+  awsConnection: AwsConnection | null;
+  awsLoading: boolean;
+  refreshAwsConnection: () => Promise<void>;
+  verifyAwsConnection: (params: {
+    roleArn: string;
+    accountId?: string;
+    region: string;
+    externalId?: string;
+  }) => Promise<VerifyAwsRoleResponse>;
+  disconnectAwsConnection: () => Promise<{ success: boolean; error?: string }>;
+  deleteAwsConnection: () => Promise<{ success: boolean; error?: string }>;
 
   // API Access Cart
   cart: CartItem[];
@@ -401,6 +433,225 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     },
     [user]
   );
+
+  // ==========================================================
+  // AI Model Deployments (Supabase Persistence & Management)
+  // ==========================================================
+  const [deployments, setDeployments] = useState<Deployment[]>([]);
+  const [deploymentsLoading, setDeploymentsLoading] = useState<boolean>(false);
+  const [wizardModelId, setWizardModelId] = useState<string | null>(null);
+  const [selectedDeploymentId, setSelectedDeploymentId] = useState<string | null>(null);
+
+  const refreshDeployments = useCallback(async () => {
+    if (!user) {
+      setDeployments([]);
+      return;
+    }
+    setDeploymentsLoading(true);
+    try {
+      const items = await DeploymentService.getUserDeployments(user.id, models);
+      setDeployments(items);
+    } catch (e) {
+      console.warn('Error refreshing user deployments:', e);
+    } finally {
+      setDeploymentsLoading(false);
+    }
+  }, [user, models]);
+
+  useEffect(() => {
+    refreshDeployments();
+  }, [refreshDeployments]);
+
+  const openDeploymentWizard = useCallback((modelId: string) => {
+    setWizardModelId(modelId);
+  }, []);
+
+  const closeDeploymentWizard = useCallback(() => {
+    setWizardModelId(null);
+  }, []);
+
+  const openDeploymentDetails = useCallback((deploymentId: string) => {
+    setSelectedDeploymentId(deploymentId);
+  }, []);
+
+  const closeDeploymentDetails = useCallback(() => {
+    setSelectedDeploymentId(null);
+  }, []);
+
+  const createDeployment = useCallback(
+    async (draft: DeploymentDraft): Promise<{ success: boolean; deployment?: Deployment; error?: string }> => {
+      if (!user) {
+        return { success: false, error: 'You must be signed in to deploy models.' };
+      }
+
+      try {
+        const result = await DeploymentService.createDeployment(draft, user.id, models);
+        if (result.success && result.deployment) {
+          setDeployments((prev) => [result.deployment!, ...prev]);
+          // Sync library item deployment status
+          updateLibraryItemStatus(draft.model_id, { deployment_status: 'deploying' });
+          return { success: true, deployment: result.deployment };
+        }
+        return { success: false, error: result.error };
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'Failed to create deployment.' };
+      }
+    },
+    [user, models, updateLibraryItemStatus]
+  );
+
+  const stopDeployment = useCallback(
+    async (id: string): Promise<{ success: boolean; error?: string }> => {
+      if (!user) return { success: false, error: 'You must be signed in.' };
+      try {
+        const result = await DeploymentService.stopDeployment(id, user.id, models);
+        if (result.success) {
+          setDeployments((prev) =>
+            prev.map((d) => (d.id === id ? { ...d, status: 'stopped', updated_at: new Date().toISOString() } : d))
+          );
+          const target = deployments.find((d) => d.id === id);
+          if (target) {
+            updateLibraryItemStatus(target.model_id, { deployment_status: 'stopped' });
+          }
+          return { success: true };
+        }
+        return { success: false, error: result.error };
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'Failed to stop deployment.' };
+      }
+    },
+    [user, models, deployments, updateLibraryItemStatus]
+  );
+
+  const terminateDeployment = useCallback(
+    async (id: string): Promise<{ success: boolean; error?: string }> => {
+      if (!user) return { success: false, error: 'You must be signed in.' };
+      try {
+        const result = await DeploymentService.terminateDeployment(id, user.id, models);
+        if (result.success) {
+          setDeployments((prev) =>
+            prev.map((d) => (d.id === id ? { ...d, status: 'terminated', updated_at: new Date().toISOString() } : d))
+          );
+          const target = deployments.find((d) => d.id === id);
+          if (target) {
+            updateLibraryItemStatus(target.model_id, { deployment_status: 'not_deployed' });
+          }
+          return { success: true };
+        }
+        return { success: false, error: result.error };
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'Failed to terminate deployment.' };
+      }
+    },
+    [user, models, deployments, updateLibraryItemStatus]
+  );
+
+  const deleteDeployment = useCallback(
+    async (id: string): Promise<{ success: boolean; error?: string }> => {
+      if (!user) return { success: false, error: 'You must be signed in.' };
+      try {
+        const result = await DeploymentService.deleteDeployment(id, user.id);
+        if (result.success) {
+          setDeployments((prev) => prev.filter((d) => d.id !== id));
+          return { success: true };
+        }
+        return { success: false, error: result.error };
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'Failed to delete deployment.' };
+      }
+    },
+    [user]
+  );
+
+  // ==========================================================
+  // AWS Account Connection (Phase 2A IAM Cross-Account State)
+  // ==========================================================
+  const [awsConnection, setAwsConnection] = useState<AwsConnection | null>(null);
+  const [awsLoading, setAwsLoading] = useState<boolean>(false);
+
+  const refreshAwsConnection = useCallback(async () => {
+    if (!user) {
+      setAwsConnection(null);
+      return;
+    }
+    setAwsLoading(true);
+    try {
+      const conn = await awsConnectionService.getUserAwsConnection(user.id);
+      setAwsConnection(conn);
+    } catch (err) {
+      console.warn('Error refreshing AWS connection:', err);
+    } finally {
+      setAwsLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    refreshAwsConnection();
+  }, [refreshAwsConnection]);
+
+  const verifyAwsConnection = useCallback(
+    async (params: {
+      roleArn: string;
+      accountId?: string;
+      region: string;
+      externalId?: string;
+    }): Promise<VerifyAwsRoleResponse> => {
+      if (!user) {
+        return {
+          success: false,
+          status: 'failed',
+          error: 'You must be signed in to connect an AWS account.'
+        };
+      }
+      setAwsLoading(true);
+      try {
+        const result = await awsConnectionService.verifyAndConnectAws({
+          userId: user.id,
+          roleArn: params.roleArn,
+          accountId: params.accountId,
+          region: params.region,
+          externalId: params.externalId
+        });
+        await refreshAwsConnection();
+        return result;
+      } catch (err: any) {
+        return {
+          success: false,
+          status: 'failed',
+          error: err?.message || 'Failed to verify AWS connection.'
+        };
+      } finally {
+        setAwsLoading(false);
+      }
+    },
+    [user, refreshAwsConnection]
+  );
+
+  const disconnectAwsConnection = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+    if (!user || !awsConnection) return { success: false, error: 'No active connection found.' };
+    try {
+      const res = await awsConnectionService.disconnectAws(awsConnection.id, user.id);
+      if (res.success) {
+        setAwsConnection((prev) => (prev ? { ...prev, status: 'disconnected' } : null));
+      }
+      return res;
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Failed to disconnect AWS.' };
+    }
+  }, [user, awsConnection]);
+
+  const deleteAwsConnection = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+    if (!user || !awsConnection) return { success: false, error: 'No active connection found.' };
+    try {
+      const res = await awsConnectionService.deleteAwsConnection(awsConnection.id, user.id);
+      if (res.success) {
+        setAwsConnection(null);
+      }
+      return res;
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Failed to remove AWS connection.' };
+    }
+  }, [user, awsConnection]);
 
   // Active APIs (My APIs)
   const [activeApis, setActiveApis] = useState<ActiveApi[]>(() => {
@@ -783,6 +1034,29 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         removeFromLibrary,
         updateLibraryItemStatus,
         refreshLibrary,
+
+        // AI Model Deployments (Supabase Persistence)
+        deployments,
+        deploymentsLoading,
+        wizardModelId,
+        selectedDeploymentId,
+        openDeploymentWizard,
+        closeDeploymentWizard,
+        openDeploymentDetails,
+        closeDeploymentDetails,
+        refreshDeployments,
+        createDeployment,
+        stopDeployment,
+        terminateDeployment,
+        deleteDeployment,
+
+        // AWS Account Connection (Phase 2A IAM Cross-Account Verification)
+        awsConnection,
+        awsLoading,
+        refreshAwsConnection,
+        verifyAwsConnection,
+        disconnectAwsConnection,
+        deleteAwsConnection,
 
         // Cart
         cart,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   Sparkles,
@@ -56,26 +56,7 @@ export const TryModel: React.FC<TryModelProps> = ({ embedMode = false, presetMod
   // Dropdown list for Model B (must match Model A's category for valid comparison)
   const comparableModels = models.filter((m) => m.category === modelA.category && m.id !== modelA.id);
 
-  // Set default model B when compare mode is activated
-  useEffect(() => {
-    if (isCompareMode && comparableModels.length > 0 && !modelBId) {
-      setModelBId(comparableModels[0].id);
-    }
-  }, [isCompareMode, modelA.category]);
-
-  // Load initial model state
-  useEffect(() => {
-    if (presetModelId) {
-      setModelAId(presetModelId);
-    }
-  }, [presetModelId]);
-
-  // Set initial outputs on mount
-  useEffect(() => {
-    generateMockOutputs(true);
-  }, [modelAId, modelBId]);
-
-  const generateMockOutputs = (silent = false) => {
+  const generateMockOutputs = useCallback((silent = false) => {
     // Return mock images based on prompt keyword matching or style
     let imagesA: string[] = [];
     let imagesB: string[] = [];
@@ -170,7 +151,26 @@ export const TryModel: React.FC<TryModelProps> = ({ embedMode = false, presetMod
         return next;
       });
     }, 150);
-  };
+  }, [modelA, modelB, prompt, numOutputs, addToast]);
+
+  // Set default model B when compare mode is activated
+  useEffect(() => {
+    if (isCompareMode && comparableModels.length > 0 && !modelBId) {
+      setModelBId(comparableModels[0].id);
+    }
+  }, [isCompareMode, comparableModels, modelBId]);
+
+  // Load initial model state
+  useEffect(() => {
+    if (presetModelId) {
+      setModelAId(presetModelId);
+    }
+  }, [presetModelId]);
+
+  // Set initial outputs on mount
+  useEffect(() => {
+    generateMockOutputs(true);
+  }, [generateMockOutputs]);
 
   const handleGenerate = () => {
     generateMockOutputs();

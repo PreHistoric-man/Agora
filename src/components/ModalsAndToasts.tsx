@@ -9,6 +9,9 @@ import {
   ShieldAlert
 } from 'lucide-react';
 
+import { DeploymentWizardModal } from './DeploymentWizardModal';
+import { DeploymentDetailsModal } from './DeploymentDetailsModal';
+
 export const ToastStack: React.FC = () => {
   const { toasts, removeToast } = useApp();
 
@@ -64,5 +67,21 @@ export const ToastStack: React.FC = () => {
 };
 
 export const ModalsManager: React.FC = () => {
-  return null;
+  const { wizardModelId, selectedDeploymentId, deployments, closeDeploymentDetails } = useApp();
+
+  const selectedDeployment = selectedDeploymentId
+    ? deployments.find((d) => d.id === selectedDeploymentId) || null
+    : null;
+
+  return (
+    <>
+      {wizardModelId && <DeploymentWizardModal />}
+      {selectedDeploymentId && (
+        <DeploymentDetailsModal
+          deployment={selectedDeployment}
+          onClose={closeDeploymentDetails}
+        />
+      )}
+    </>
+  );
 };

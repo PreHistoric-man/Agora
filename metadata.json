@@ -1,6 +1,6 @@
 {
   "name": "Agora",
-  "description": "Agora - Gathering Place for Ai Geeks: Marketplace, sandbox, discounts, and deployment engine for AI models.",
+  "description": "ModalHub AI Model Marketplace & Deployment Engine: Steam-style library, AWS cross-account IAM role verification, and multi-provider model deployments.",
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]

@@ -549,6 +549,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
       } catch (netErr) {
+        console.warn('Network exception during OTP request:', netErr);
         // Network exception: fallback to demo OTP so user can test OTP workflow seamlessly
         const demoOtp = Math.floor(100000 + Math.random() * 900000).toString();
         localStorage.setItem(

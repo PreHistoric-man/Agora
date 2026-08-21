@@ -26,7 +26,8 @@ import {
   Code2,
   Star,
   ThumbsUp,
-  Key
+  Key,
+  Server
 } from 'lucide-react';
 
 export const ModelDetail: React.FC = () => {
@@ -41,7 +42,8 @@ export const ModelDetail: React.FC = () => {
     isInCompare,
     toggleWishlist,
     addToast,
-    isModelInLibrary
+    isModelInLibrary,
+    openDeploymentWizard
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'reviews' | 'specs' | 'code' | 'all'>('reviews');
@@ -272,19 +274,27 @@ export const ModelDetail: React.FC = () => {
               <div className="flex flex-col gap-2">
                 <button
                   type="button"
-                  onClick={() => setView('library')}
-                  className="w-full py-3.5 px-4 rounded-xl font-display text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 shadow-lg shadow-cyan-500/10"
+                  onClick={() => openDeploymentWizard(model.id)}
+                  className="w-full py-3.5 px-4 rounded-xl font-display text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-lg shadow-cyan-500/20"
                 >
-                  <CheckCircle2 size={16} className="text-cyan-400" />
-                  ✓ In Your Library (View)
+                  <Server size={16} /> Deploy Model
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setView('my-apis')}
-                  className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-sans font-semibold flex items-center justify-center gap-1.5 cursor-pointer border border-white/10"
-                >
-                  <Key size={13} className="text-emerald-400" /> Manage API Keys & SLA
-                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setView('library')}
+                    className="py-2 px-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-sans font-semibold flex items-center justify-center gap-1.5 cursor-pointer border border-white/10"
+                  >
+                    <CheckCircle2 size={13} className="text-cyan-400" /> In Library
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setView('my-apis')}
+                    className="py-2 px-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-sans font-semibold flex items-center justify-center gap-1.5 cursor-pointer border border-white/10"
+                  >
+                    <Key size={13} className="text-emerald-400" /> API Keys
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col gap-2">
@@ -308,6 +318,13 @@ export const ModelDetail: React.FC = () => {
                       {isFreeModel ? 'Claim Free License (Add to Cart)' : 'Add API Access to Cart'}
                     </>
                   )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addToast('You must add this model to your library before deploying it.', 'error')}
+                  className="w-full py-2 px-3 rounded-xl bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-slate-200 text-xs font-sans font-medium flex items-center justify-center gap-1.5 cursor-pointer border border-white/5"
+                >
+                  <Server size={13} className="text-slate-500" /> Deploy (Requires Library)
                 </button>
                 <span className="text-[10px] text-slate-400 text-center font-sans">
                   {isFreeModel
