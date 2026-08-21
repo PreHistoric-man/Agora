@@ -543,7 +543,32 @@ export const ModelDetail: React.FC = () => {
           <div className="flex flex-col gap-6">
             {/* Pricing Panel */}
             <div className="rounded-2xl glass-panel border-cyan-500/10 p-6 flex flex-col gap-4 shadow-xl">
-              <span className="font-display text-[9px] font-black tracking-wider text-cyan-400 uppercase">PRICING TIERS</span>
+              <div className="flex items-center justify-between">
+                <span className="font-display text-[9px] font-black tracking-wider text-cyan-400 uppercase">PRICING TIERS</span>
+                {model.isDiscounted && (
+                  <span className="rounded-full bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 font-display text-[9px] font-black text-amber-300 uppercase tracking-wider animate-pulse">
+                    🔥 {model.discountPercent}% OFF SALE
+                  </span>
+                )}
+              </div>
+
+              {model.isDiscounted && (
+                <div className="rounded-xl bg-gradient-to-r from-amber-500/15 via-rose-500/15 to-transparent border border-amber-500/30 p-3 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-amber-300 font-bold block">{model.discountBadge || 'Agora Special Deal'}</span>
+                    <div className="flex items-baseline gap-2 mt-0.5">
+                      <span className="font-display text-lg font-black text-white">₹{model.price}</span>
+                      {model.originalPrice && (
+                        <span className="text-xs text-slate-500 line-through">₹{model.originalPrice}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[9px] text-slate-400 block font-medium">Deal expires in</span>
+                    <span className="text-xs font-mono font-bold text-rose-400">{model.discountEndsIn || '24h'}</span>
+                  </div>
+                </div>
+              )}
               
               {/* Local */}
               <div className="rounded-xl border border-white/5 bg-white/[0.01] p-4 flex flex-col gap-1.5 hover:border-cyan-500/20 transition-all">
@@ -575,7 +600,7 @@ export const ModelDetail: React.FC = () => {
                   <span className="font-display text-xs font-black text-white">{model.pricingDetails.cloud}</span>
                 </div>
                 <p className="font-sans text-[10px] text-slate-400 leading-relaxed">
-                  Utilize ModelVerse server farms. API endpoints active, zero GPU overhead.
+                  Utilize Agora high-throughput server clusters. API endpoints active, zero GPU overhead.
                 </p>
                 <button
                   onClick={() => addToast('API active. Client headers keys refreshed.', 'success')}

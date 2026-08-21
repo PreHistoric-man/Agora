@@ -79,6 +79,7 @@ export const Discover: React.FC = () => {
       // Pricing filter
       if (pricingFilter === 'Free') return m.price === 0;
       if (pricingFilter === 'Paid') return m.price > 0;
+      if (pricingFilter === 'Discounted') return m.isDiscounted || (m.originalPrice && m.originalPrice > m.price);
       if (pricingFilter === 'Subscription') return m.pricingType === 'subscription';
       return true;
     })
@@ -218,7 +219,7 @@ export const Discover: React.FC = () => {
           <div className="flex flex-col gap-2">
             <label className="font-sans text-[10px] text-slate-500 font-bold uppercase tracking-wider">Pricing Model</label>
             <div className="flex flex-col gap-2 font-sans text-xs text-slate-400">
-              {['All', 'Free', 'Paid', 'Subscription'].map((tier) => (
+              {['All', 'Discounted', 'Free', 'Paid', 'Subscription'].map((tier) => (
                 <label key={tier} className="flex items-center gap-2 cursor-pointer hover:text-white">
                   <input
                     type="radio"
@@ -227,7 +228,9 @@ export const Discover: React.FC = () => {
                     onChange={() => setPricingFilter(tier)}
                     className="accent-cyan-400"
                   />
-                  <span>{tier}</span>
+                  <span className={tier === 'Discounted' ? 'text-amber-400 font-bold flex items-center gap-1' : ''}>
+                    {tier === 'Discounted' ? '⚡ On Discount' : tier}
+                  </span>
                 </label>
               ))}
             </div>
@@ -372,9 +375,20 @@ export const Discover: React.FC = () => {
                         <Download size={10} />
                         {(m.installCount / 1000).toFixed(0)}k downloads
                       </div>
-                      <span className="font-display font-extrabold text-xs text-white">
-                        {m.price === 0 ? 'Free' : `₹${m.price}`}
-                      </span>
+                      {m.isDiscounted && m.originalPrice ? (
+                        <div className="flex items-baseline gap-1">
+                          <span className="font-display font-extrabold text-xs text-amber-300">
+                            ₹{m.price}
+                          </span>
+                          <span className="font-sans text-[10px] text-slate-500 line-through">
+                            ₹{m.originalPrice}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="font-display font-extrabold text-xs text-white">
+                          {m.price === 0 ? 'Free' : `₹${m.price}`}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );

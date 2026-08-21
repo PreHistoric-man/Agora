@@ -22,6 +22,11 @@ export interface Model {
   reviewCount: number;
   installCount: number;
   price: number; // in INR, 0 means Free/Dynamic depending on pricingType
+  originalPrice?: number; // Price before discount
+  discountPercent?: number; // e.g. 40, 50, 60
+  discountEndsIn?: string; // e.g. "18h 42m", "Ends in 2d"
+  isDiscounted?: boolean;
+  discountBadge?: string; // e.g. "Flash Deal - 40% OFF"
   pricingType: 'free' | 'cloud-only' | 'local-free-cloud-paid' | 'paid' | 'subscription';
   pricingDetails: {
     local: string;
@@ -256,6 +261,11 @@ export const mockModels: Model[] = [
     reviewCount: 4280,
     installCount: 842000,
     price: 299,
+    originalPrice: 499,
+    discountPercent: 40,
+    isDiscounted: true,
+    discountEndsIn: '18h 42m',
+    discountBadge: '⚡ Flash Deal - 40% OFF',
     pricingType: 'local-free-cloud-paid',
     pricingDetails: {
       local: 'Free',
@@ -487,10 +497,15 @@ export const mockModels: Model[] = [
     rating: 4.9,
     reviewCount: 3890,
     installCount: 512000,
-    price: 899,
+    price: 449,
+    originalPrice: 899,
+    discountPercent: 50,
+    isDiscounted: true,
+    discountEndsIn: '3d 06h',
+    discountBadge: '🧠 Super Logic - 50% OFF',
     pricingType: 'paid',
     pricingDetails: {
-      local: '₹899 (License Key)',
+      local: '₹449 (Deal License)',
       cloud: '₹0.15 / token query',
       pro: '₹1499 / month (Enterprise)'
     },
@@ -544,10 +559,15 @@ export const mockModels: Model[] = [
     rating: 4.5,
     reviewCount: 920,
     installCount: 217000,
-    price: 499,
+    price: 299,
+    originalPrice: 599,
+    discountPercent: 50,
+    isDiscounted: true,
+    discountEndsIn: '1d 08h',
+    discountBadge: '🎬 Geek Fest - 50% OFF',
     pricingType: 'paid',
     pricingDetails: {
-      local: '₹499 Lifetime',
+      local: '₹299 Lifetime',
       cloud: '₹1.20 / sec video'
     },
     version: 'v0.9.5',
@@ -709,7 +729,12 @@ export const mockModels: Model[] = [
     rating: 4.7,
     reviewCount: 680,
     installCount: 180000,
-    price: 299,
+    price: 179,
+    originalPrice: 299,
+    discountPercent: 40,
+    isDiscounted: true,
+    discountEndsIn: '1d 19h',
+    discountBadge: '🎵 Indie Sound - 40% OFF',
     pricingType: 'paid',
     pricingDetails: {
       local: '₹299 One-time',
@@ -817,10 +842,15 @@ export const mockModels: Model[] = [
     rating: 4.9,
     reviewCount: 1950,
     installCount: 310000,
-    price: 1499,
+    price: 899,
+    originalPrice: 1499,
+    discountPercent: 40,
+    isDiscounted: true,
+    discountEndsIn: '16h 45m',
+    discountBadge: '⚡ 70B Heavyweight - 40% OFF',
     pricingType: 'paid',
     pricingDetails: {
-      local: '₹1499 Lifetime License',
+      local: '₹899 (Agora Special License)',
       cloud: '₹0.22 / token query',
       pro: '₹2499 / month'
     },
@@ -926,10 +956,15 @@ export const mockModels: Model[] = [
     rating: 4.6,
     reviewCount: 1100,
     installCount: 125000,
-    price: 599,
+    price: 359,
+    originalPrice: 599,
+    discountPercent: 40,
+    isDiscounted: true,
+    discountEndsIn: '22h 15m',
+    discountBadge: '🤖 Autonomous Agent - 40% OFF',
     pricingType: 'paid',
     pricingDetails: {
-      local: '₹599 One-time',
+      local: '₹359 Deal License',
       cloud: '₹0.18 / action block',
       pro: '₹999 / month (Enterprise)'
     },
@@ -1035,10 +1070,15 @@ export const mockModels: Model[] = [
     rating: 4.8,
     reviewCount: 390,
     installCount: 45000,
-    price: 2499,
+    price: 999,
+    originalPrice: 2499,
+    discountPercent: 60,
+    isDiscounted: true,
+    discountEndsIn: '14h 10m',
+    discountBadge: '🧬 Research Grant - 60% OFF',
     pricingType: 'paid',
     pricingDetails: {
-      local: '₹2499/node license',
+      local: '₹999/node (Sale License)',
       cloud: '₹1.50 / query structure'
     },
     version: 'v1.4.2',
@@ -1143,12 +1183,17 @@ export const mockModels: Model[] = [
     rating: 4.6,
     reviewCount: 880,
     installCount: 110000,
-    price: 799,
+    price: 479,
+    originalPrice: 799,
+    discountPercent: 40,
+    isDiscounted: true,
+    discountEndsIn: '2d 11h',
+    discountBadge: '🎨 UI Vectors - 40% OFF',
     pricingType: 'subscription',
     pricingDetails: {
-      local: 'Pro Members Only',
-      cloud: '₹0.10 / generation',
-      pro: '₹799 / month (Unlimited local)'
+      local: 'Pro Deal Tier',
+      cloud: '₹0.06 / generation',
+      pro: '₹479 / month (Sale rate)'
     },
     version: 'v1.4.0',
     releaseDate: '2026-01-08',
@@ -1198,11 +1243,16 @@ export const mockModels: Model[] = [
     rating: 4.8,
     reviewCount: 540,
     installCount: 95000,
-    price: 1299,
+    price: 649,
+    originalPrice: 1299,
+    discountPercent: 50,
+    isDiscounted: true,
+    discountEndsIn: '2d 04h',
+    discountBadge: '🎥 Cinema 4K - 50% OFF',
     pricingType: 'paid',
     pricingDetails: {
-      local: '₹1299 One-time purchase',
-      cloud: '₹2.80 / sec rendering'
+      local: '₹649 One-time Deal',
+      cloud: '₹1.40 / sec rendering'
     },
     version: 'v1.0.0',
     releaseDate: '2026-05-20',
@@ -1306,10 +1356,15 @@ export const mockModels: Model[] = [
     rating: 4.7,
     reviewCount: 950,
     installCount: 190000,
-    price: 499,
+    price: 299,
+    originalPrice: 499,
+    discountPercent: 40,
+    isDiscounted: true,
+    discountEndsIn: '12h 30m',
+    discountBadge: '💻 Dev Deal - 40% OFF',
     pricingType: 'paid',
     pricingDetails: {
-      local: '₹499 (Standard Key)',
+      local: '₹299 (Discount Key)',
       cloud: 'Not Offered'
     },
     version: 'v2.1.0',
@@ -1348,6 +1403,128 @@ export const mockModels: Model[] = [
     installed: false,
     wishlisted: false,
     sizeOnDisk: '5.5 GB'
+  },
+  {
+    id: 'biotransformer',
+    name: 'BioTransformer X',
+    creatorId: 'c10',
+    description: 'Deep structural pharmacology and molecular binding transformer.',
+    longDescription: 'BioTransformer X analyzes small-molecule ligand affinity, predicts protein docking poses, and generates candidate pharmacophores in real time. Designed for biotechnology laboratories and computational chemists.',
+    category: 'Science',
+    tags: ['PHARMACOLOGY', 'DOCKING', 'MOLECULAR', 'SOTA'],
+    rating: 4.9,
+    reviewCount: 420,
+    installCount: 62000,
+    price: 599,
+    originalPrice: 1999,
+    discountPercent: 70,
+    isDiscounted: true,
+    discountEndsIn: '10h 25m',
+    discountBadge: '💥 Flash 70% OFF',
+    pricingType: 'paid',
+    pricingDetails: {
+      local: '₹599 (Agora Launch Deal)',
+      cloud: '₹0.50 / docking batch'
+    },
+    version: 'v2.0.1',
+    releaseDate: '2026-04-10',
+    updatedDate: '2026-08-18',
+    artwork: 'from-emerald-900 to-teal-950',
+    screenshots: [
+      'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=800&auto=format&fit=crop&q=80'
+    ],
+    trustScore: 97,
+    trustBreakdown: {
+      performance: 98,
+      community: 94,
+      documentation: 99,
+      reliability: 96,
+      creator: 99
+    },
+    benchmarks: [
+      { name: 'Docking RMSD', score: 98.1 },
+      { name: 'Affinity Score', score: 96.5 },
+      { name: 'Screening Throughput', score: 95.0 },
+      { name: 'PDB Format Accuracy', score: 99.2 }
+    ],
+    systemRequirements: {
+      minimum: {
+        gpu: 'RTX 3070',
+        vram: '8 GB',
+        ram: '32 GB',
+        storage: '16 GB'
+      },
+      recommended: {
+        gpu: 'RTX 4090 / A6000',
+        vram: '24 GB',
+        ram: '64 GB',
+        storage: '22 GB'
+      }
+    },
+    installed: false,
+    wishlisted: false,
+    sizeOnDisk: '15.6 GB'
+  },
+  {
+    id: 'synthflow-studio',
+    name: 'SynthFlow Studio',
+    creatorId: 'c5',
+    description: 'Full-stack AI music production suite with stems separation and mastering.',
+    longDescription: 'SynthFlow Studio transforms textual musical prompts and reference audio stems into broadcast-grade multitrack projects with automated mixing, compression, and spatial audio mastering.',
+    category: 'Audio',
+    tags: ['AUDIO-STUDIO', 'MULTITRACK', 'SYNTH', 'MASTERING'],
+    rating: 4.8,
+    reviewCount: 1250,
+    installCount: 220000,
+    price: 499,
+    originalPrice: 999,
+    discountPercent: 50,
+    isDiscounted: true,
+    discountEndsIn: '2d 18h',
+    discountBadge: '🔥 Studio Bundle - 50% OFF',
+    pricingType: 'paid',
+    pricingDetails: {
+      local: '₹499 Lifetime Access',
+      cloud: '₹0.05 / render minute'
+    },
+    version: 'v3.1.0',
+    releaseDate: '2026-02-20',
+    updatedDate: '2026-08-05',
+    artwork: 'from-amber-800 to-red-950',
+    screenshots: [
+      'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=800&auto=format&fit=crop&q=80'
+    ],
+    trustScore: 94,
+    trustBreakdown: {
+      performance: 96,
+      community: 93,
+      documentation: 95,
+      reliability: 92,
+      creator: 95
+    },
+    benchmarks: [
+      { name: 'Dynamic Range', score: 96.8 },
+      { name: 'Stem Isolation', score: 95.2 },
+      { name: 'Latency', score: 92.4 },
+      { name: 'Harmonic Richness', score: 97.0 }
+    ],
+    systemRequirements: {
+      minimum: {
+        gpu: 'RTX 2060 / Apple M1',
+        vram: '6 GB',
+        ram: '16 GB',
+        storage: '8 GB'
+      },
+      recommended: {
+        gpu: 'RTX 3070 / Apple M2',
+        vram: '8 GB',
+        ram: '32 GB',
+        storage: '12 GB'
+      }
+    },
+    installed: false,
+    wishlisted: true,
+    sizeOnDisk: '8.5 GB'
   }
 ];
 

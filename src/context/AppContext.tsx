@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 import {
   mockModels,
   mockCreators,
@@ -17,6 +18,7 @@ import type { Deployment, DeploymentDraft } from '../data/deploymentData';
 export type ViewType =
   | 'store'
   | 'discover'
+  | 'discounts'
   | 'library'
   | 'workshop'
   | 'community'
@@ -96,6 +98,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { profile, user } = useAuth();
   const [models, setModels] = useState<Model[]>(mockModels);
   const [creators, setCreators] = useState<Creator[]>(mockCreators);
   const [posts, setPosts] = useState<CommunityPost[]>(mockCommunityPosts);
@@ -122,8 +125,8 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
       id: 'n1',
-      title: 'PixelForge XL is 30% off!',
-      content: 'Grab PixelForge XL cloud hosting at just ₹0.05 per generation for a limited time.',
+      title: 'Agora Flash Deals: Up to 70% Off AI Models!',
+      content: 'Grab PixelForge XL, BioTransformer X, and VidCraft at massive discounts in the Agora Deals hub.',
       time: '3 hours ago',
       read: false,
       type: 'discount'
@@ -377,14 +380,17 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     title: string,
     content: string
   ) => {
+    const authorName = profile?.display_name || user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'You (Agora AI Geek)';
+    const authorAvatar = profile?.avatar_url || user?.user_metadata?.avatar_url || '🛸';
+
     const newPost: CommunityPost = {
       id: `post-user-${Date.now()}`,
       modelId,
       modelName,
       title,
       content,
-      author: 'You (ModelVerse Explorer)',
-      authorAvatar: '🛸',
+      author: authorName,
+      authorAvatar: authorAvatar,
       replies: 0,
       likes: 0,
       timeAgo: 'Just now',

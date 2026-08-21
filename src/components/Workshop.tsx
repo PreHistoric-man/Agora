@@ -36,10 +36,10 @@ export const Workshop: React.FC = () => {
             <Wrench size={12} /> COMMUNITY WORKSHOP
           </span>
           <h1 className="font-display text-3xl md:text-4xl font-black text-white mt-2">
-            ModelVerse Workshop
+            Agora Workshop
           </h1>
           <p className="font-sans text-xs md:text-sm text-slate-300 leading-relaxed mt-2.5">
-            Extend your AI models with community-created content. Discover customized LoRAs, system prompts, presets, pipeline workflows, and custom node configurations.
+            The gathering place for AI geeks. Extend your AI models with community-created content. Discover customized LoRAs, system prompts, presets, pipeline workflows, and custom node configurations.
           </p>
         </div>
 

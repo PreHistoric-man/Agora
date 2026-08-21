@@ -67,10 +67,10 @@ export const Community: React.FC = () => {
             <Users size={12} /> GLOBAL COMMUNITY HUB
           </span>
           <h1 className="font-display text-3xl md:text-4xl font-black text-white mt-2">
-            ModelVerse Hubs
+            Agora Community Hubs
           </h1>
           <p className="font-sans text-xs md:text-sm text-slate-300 leading-relaxed mt-2.5">
-            Discuss architectures, share visual creations, post fine-tuning configurations, write helper guides, and review model parameters with global developers.
+            The gathering place for AI geeks. Discuss architectures, share visual creations, post fine-tuning configurations, write helper guides, and review model parameters with global developers.
           </p>
         </div>
         <div className="relative w-40 h-40 hidden md:flex items-center justify-center shrink-0">

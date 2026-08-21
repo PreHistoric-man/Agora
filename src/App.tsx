@@ -1,5 +1,6 @@
 import React from 'react';
 import { AppContextProvider, useApp } from './context/AppContext';
+import { AuthProvider } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { StoreHome } from './components/StoreHome';
 import { Discover } from './components/Discover';
@@ -9,12 +10,15 @@ import { Community } from './components/Community';
 import { ModelDetail } from './components/ModelDetail';
 import { CreatorProfile } from './components/CreatorProfile';
 import { Wishlist } from './components/Wishlist';
+import { Discounts } from './components/Discounts';
 import { TryModel } from './components/TryModel';
 import { ModelLauncher } from './components/ModelLauncher';
 import { DeploymentWizard } from './components/DeploymentWizard';
 import { Deployments } from './components/Deployments';
 import { DeploymentDetail } from './components/DeploymentDetail';
 import { ToastStack, ModalsManager } from './components/ModalsAndToasts';
+import { AuthModal } from './components/AuthModal';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 const AppInner: React.FC = () => {
   const { currentView } = useApp();
@@ -23,8 +27,18 @@ const AppInner: React.FC = () => {
     switch (currentView) {
       case 'discover':
         return <Discover />;
+      case 'discounts':
+        return <Discounts />;
       case 'library':
-        return <Library />;
+        return (
+          <ProtectedRoute
+            title="My AI Model Library"
+            description="Manage your downloaded weights, local compilation runtimes, and licensed hardware keys."
+            targetViewName="library"
+          >
+            <Library />
+          </ProtectedRoute>
+        );
       case 'workshop':
         return <Workshop />;
       case 'community':
@@ -40,11 +54,35 @@ const AppInner: React.FC = () => {
       case 'launch':
         return <ModelLauncher />;
       case 'deployment-wizard':
-        return <DeploymentWizard />;
+        return (
+          <ProtectedRoute
+            title="Deploy Model API"
+            description="Configure serverless hardware clusters, dedicated endpoints, and custom API authorization tokens."
+            targetViewName="deployment-wizard"
+          >
+            <DeploymentWizard />
+          </ProtectedRoute>
+        );
       case 'deployments':
-        return <Deployments />;
+        return (
+          <ProtectedRoute
+            title="Deployments & Cloud Endpoints"
+            description="Monitor live inference traffic, manage API keys, and track production latency."
+            targetViewName="deployments"
+          >
+            <Deployments />
+          </ProtectedRoute>
+        );
       case 'deployment-detail':
-        return <DeploymentDetail />;
+        return (
+          <ProtectedRoute
+            title="Deployment Analytics & Keys"
+            description="Access your dedicated endpoint URL, telemetry graphs, and client SDK code."
+            targetViewName="deployment-detail"
+          >
+            <DeploymentDetail />
+          </ProtectedRoute>
+        );
       case 'store':
       default:
         return <StoreHome />;
@@ -65,18 +103,21 @@ const AppInner: React.FC = () => {
         {renderActiveView()}
       </main>
 
-      {/* Toast logs and modal overlay manager */}
+      {/* Toast logs, modal overlay manager, and auth modal */}
       <ToastStack />
       <ModalsManager />
+      <AuthModal />
     </div>
   );
 };
 
 function App() {
   return (
-    <AppContextProvider>
-      <AppInner />
-    </AppContextProvider>
+    <AuthProvider>
+      <AppContextProvider>
+        <AppInner />
+      </AppContextProvider>
+    </AuthProvider>
   );
 }
 

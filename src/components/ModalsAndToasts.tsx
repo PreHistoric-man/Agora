@@ -176,10 +176,22 @@ export const ModalsManager: React.FC = () => {
                 <div className={`h-10 w-14 rounded bg-gradient-to-br ${model.artwork}`}></div>
                 <div className="flex flex-col">
                   <span className="font-display text-xs font-black text-slate-200">{model.name}</span>
-                  <span className="font-sans text-[9px] text-slate-500">by {creator?.name}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-sans text-[9px] text-slate-500">by {creator?.name}</span>
+                    {model.isDiscounted && (
+                      <span className="rounded bg-amber-500/20 px-1.5 py-0.2 text-[8px] font-bold text-amber-300">
+                        {model.discountPercent}% OFF
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-              <span className="font-display font-extrabold text-sm text-white">₹{model.price}</span>
+              <div className="text-right">
+                <span className="font-display font-extrabold text-sm text-amber-300">₹{model.price}</span>
+                {model.originalPrice && (
+                  <span className="block font-sans text-[10px] text-slate-500 line-through">₹{model.originalPrice}</span>
+                )}
+              </div>
             </div>
 
             {/* Card Inputs */}

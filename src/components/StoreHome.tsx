@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { Star, Download, Heart, ArrowRight, Sparkles, Terminal, Flame } from 'lucide-react';
+import { Star, Download, Heart, ArrowRight, Sparkles, Terminal, Flame, Tag, Zap, Clock } from 'lucide-react';
 import { ModelTags } from './ModelTags';
 
 export const StoreHome: React.FC = () => {
@@ -20,6 +20,9 @@ export const StoreHome: React.FC = () => {
   // Specific Trending Models requested by prompt
   const trendingIds = ['codeforge-7b', 'pixelforge-xl', 'audionova', 'reasonx-32b', 'vidcraft'];
   const trendingModels = models.filter((m) => trendingIds.includes(m.id));
+
+  // Discounted models for Flash Deals section
+  const discountedModels = models.filter((m) => m.isDiscounted || (m.originalPrice && m.originalPrice > m.price));
 
   // "Because you use CodeForge..." recommendations
   const recommendationIds = ['devopscopilot', 'codeforge-lite', 'scribeai', 'taskagent-v2'];
@@ -61,6 +64,35 @@ export const StoreHome: React.FC = () => {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 animate-fade-in">
+      {/* 0. BRAND GREETING & SLOGAN BANNER */}
+      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/30 via-indigo-950/20 to-purple-950/30 p-4 px-6 shadow-lg backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 font-display font-black text-white shadow-md">
+            A
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="font-display text-base font-black text-white tracking-wide">AGORA</h2>
+              <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-[10px] font-bold text-cyan-300 border border-cyan-500/30">
+                Hub v2.5
+              </span>
+            </div>
+            <p className="font-sans text-xs text-cyan-300/90 font-medium">
+              Gathering Place for Ai Geeks — Discover weights, test in sandbox, run locally.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setView('discounts')}
+          className="self-start md:self-auto flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-rose-500 to-pink-500 px-4 py-2 text-xs font-bold text-white shadow-md hover:from-amber-400 hover:to-pink-400 transition-all cursor-pointer"
+        >
+          <Zap size={14} className="animate-pulse" />
+          <span>⚡ Agora Geek Discounts (Up to 70% Off)</span>
+          <ArrowRight size={13} />
+        </button>
+      </div>
+
       {/* 1. CINEMATIC HERO SECTION */}
       <section className="relative mb-12 overflow-hidden rounded-3xl border border-white/5 bg-[#0b0c10] shadow-2xl">
         {/* Background glow and graphic */}
@@ -142,7 +174,113 @@ export const StoreHome: React.FC = () => {
         </div>
       </section>
 
-      {/* 2. TRENDING MODELS (CAROUSEL) */}
+      {/* 2. DEDICATED AGORA FLASH DEALS & DISCOUNTS SECTION */}
+      <section className="mb-12 rounded-3xl border border-amber-500/20 bg-gradient-to-b from-amber-950/20 via-[#11131a] to-[#0c0d12] p-6 md:p-8 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 h-64 w-64 rounded-full bg-amber-500/10 blur-3xl pointer-events-none"></div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 relative z-10">
+          <div>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 px-3 py-0.5 text-[10px] font-black text-amber-300 uppercase tracking-wide mb-1.5">
+              <Zap size={12} className="text-amber-400 animate-pulse" />
+              <span>Agora AI Geeks Special Discounts</span>
+            </div>
+            <h2 className="font-display text-2xl md:text-3xl font-black text-white flex items-center gap-2">
+              <Tag size={24} className="text-amber-400" />
+              Flash Deals & Discounts
+            </h2>
+            <p className="font-sans text-xs text-slate-300 mt-1">
+              Save up to 70% on premium reasoning, diffusion, video, and audio models
+            </p>
+          </div>
+
+          <button
+            onClick={() => setView('discounts')}
+            className="self-start sm:self-auto flex items-center gap-2 rounded-xl bg-amber-500/15 border border-amber-500/40 px-4 py-2 font-display text-xs font-bold text-amber-300 hover:bg-amber-500/25 hover:text-amber-200 transition-all group cursor-pointer"
+          >
+            <span>View All {discountedModels.length} Deals</span>
+            <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+          </button>
+        </div>
+
+        {/* Discount Deals Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 relative z-10">
+          {discountedModels.slice(0, 4).map((m) => {
+            const creator = creators.find((c) => c.id === m.creatorId);
+            const discountPct = m.discountPercent || (m.originalPrice ? Math.round(((m.originalPrice - m.price) / m.originalPrice) * 100) : 0);
+            return (
+              <div
+                key={m.id}
+                onClick={() => handleCardClick(m.id)}
+                className="group flex flex-col rounded-2xl bg-[#161722]/90 p-4 border border-amber-500/20 hover:border-amber-400/50 hover:shadow-xl hover:shadow-amber-500/10 cursor-pointer transition-all duration-300 hover:-translate-y-1"
+              >
+                {/* Artwork with discount badge */}
+                <div className={`w-full aspect-[16/10] rounded-xl bg-gradient-to-br ${m.artwork} p-3 flex flex-col justify-between relative overflow-hidden mb-3 shadow-inner`}>
+                  <div className="flex items-center justify-between">
+                    <span className="rounded-lg bg-amber-500 px-2 py-0.5 font-display text-[10px] font-black text-black uppercase shadow-md">
+                      -{discountPct}% OFF
+                    </span>
+                    <span className="rounded bg-black/60 px-1.5 py-0.5 font-mono text-[9px] font-bold text-rose-300 backdrop-blur-sm flex items-center gap-1">
+                      <Clock size={10} />
+                      {m.discountEndsIn || 'Flash'}
+                    </span>
+                  </div>
+                  <div className="font-display text-xl text-right opacity-20 font-black uppercase text-white tracking-wider">
+                    {m.category}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-display font-black text-sm text-white group-hover:text-amber-300 transition-colors truncate">
+                    {m.name}
+                  </span>
+                  <div className="flex items-center gap-0.5 text-[10px] font-bold text-yellow-400 shrink-0">
+                    <Star size={10} fill="currentColor" />
+                    {m.rating}
+                  </div>
+                </div>
+                <span className="font-sans text-[10px] text-slate-500 mb-2">by {creator?.name}</span>
+                <p className="font-sans text-[11px] text-slate-400 line-clamp-2 leading-relaxed mb-4 flex-grow">
+                  {m.description}
+                </p>
+
+                {/* Price & Savings */}
+                <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-auto">
+                  <div>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="font-display font-black text-base text-amber-300">
+                        ₹{m.price}
+                      </span>
+                      {m.originalPrice && (
+                        <span className="font-sans text-xs text-slate-500 line-through">
+                          ₹{m.originalPrice}
+                        </span>
+                      )}
+                    </div>
+                    {m.originalPrice && (
+                      <span className="text-[9px] font-bold text-emerald-400 block">
+                        Save ₹{m.originalPrice - m.price}
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openGetModelModal(m.id);
+                    }}
+                    className="rounded-lg bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 px-3 py-1.5 font-display text-[11px] font-bold text-white shadow transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <Download size={11} />
+                    Get Deal
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 3. TRENDING MODELS (CAROUSEL) */}
       <section className="mb-12">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -157,7 +295,7 @@ export const StoreHome: React.FC = () => {
               setSelectedCategory('All');
               setView('discover');
             }}
-            className="flex items-center gap-1.5 font-display text-xs font-semibold text-cyan-400 hover:text-cyan-300 transition-all group"
+            className="flex items-center gap-1.5 font-display text-xs font-semibold text-cyan-400 hover:text-cyan-300 transition-all group cursor-pointer"
           >
             Browse All Storefront
             <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
@@ -207,9 +345,22 @@ export const StoreHome: React.FC = () => {
                       <Download size={10} />
                       {(m.installCount / 1000).toFixed(0)}k
                     </div>
-                    <span className="font-display font-extrabold text-xs text-white">
-                      {formatPrice(m.price, m.pricingType)}
-                    </span>
+                    <div>
+                      {m.isDiscounted && m.originalPrice ? (
+                        <div className="flex items-baseline gap-1">
+                          <span className="font-display font-extrabold text-xs text-amber-300">
+                            ₹{m.price}
+                          </span>
+                          <span className="font-sans text-[10px] text-slate-500 line-through">
+                            ₹{m.originalPrice}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="font-display font-extrabold text-xs text-white">
+                          {formatPrice(m.price, m.pricingType)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -218,7 +369,7 @@ export const StoreHome: React.FC = () => {
         </div>
       </section>
 
-      {/* 3. PERSONALIZED RECOMMENDATION SECTION */}
+      {/* 4. PERSONALIZED RECOMMENDATION SECTION */}
       <section className="mb-12 bg-gradient-to-r from-blue-950/20 to-indigo-950/20 border border-blue-500/10 rounded-3xl p-6 md:p-8 relative">
         <div className="absolute right-8 top-8 opacity-10 select-none">
           <Terminal size={120} className="text-blue-400" />
@@ -277,7 +428,7 @@ export const StoreHome: React.FC = () => {
         </div>
       </section>
 
-      {/* 4. CATEGORIES SECTION */}
+      {/* 5. CATEGORIES SECTION */}
       <section className="mb-12">
         <h2 className="font-display text-2xl font-black text-white mb-6">
           Browse Categories
@@ -296,7 +447,7 @@ export const StoreHome: React.FC = () => {
         </div>
       </section>
 
-      {/* 5. NEW & NOTEWORTHY GRID */}
+      {/* 6. NEW & NOTEWORTHY GRID */}
       <section>
         <div className="flex items-center justify-between mb-6">
           <div>
