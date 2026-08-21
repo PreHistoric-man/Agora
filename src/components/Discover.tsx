@@ -6,12 +6,18 @@ import {
   SlidersHorizontal,
   Sparkles,
   Scale,
-  ArrowRight
+  ArrowRight,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 
 export const Discover: React.FC = () => {
   const {
     models,
+    modelsLoading,
+    modelsError,
+    refreshModels,
+    categories,
     searchQuery,
     setSearchQuery,
     comparisonModelIds,
@@ -28,20 +34,9 @@ export const Discover: React.FC = () => {
   const [sortBy, setSortBy] = useState<'overall' | 'cheapest' | 'fastest' | 'coding' | 'reasoning' | 'popular'>('overall');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
 
-  // Categories list
-  const categories = [
-    'All',
-    'Reasoning',
-    'Coding',
-    'Image',
-    'Speech',
-    'Vision',
-    'Science'
-  ];
-
   // Providers list derived dynamically
   const providers = useMemo(() => {
-    const list = Array.from(new Set(models.map((m) => m.provider)));
+    const list = Array.from(new Set(models.map((m) => m.provider || m.creator).filter(Boolean)));
     return ['All', ...list];
   }, [models]);
 
@@ -49,26 +44,30 @@ export const Discover: React.FC = () => {
   const filteredModels = useMemo(() => {
     let result = [...models];
 
-    // 1. Search Query
+    // 1. Search Query across name, description, category, tags, creator, provider, license, parameters
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
         (m) =>
           m.name.toLowerCase().includes(q) ||
           m.provider.toLowerCase().includes(q) ||
+          (m.creator && m.creator.toLowerCase().includes(q)) ||
+          m.category.toLowerCase().includes(q) ||
           m.description.toLowerCase().includes(q) ||
+          (m.parameters && m.parameters.toLowerCase().includes(q)) ||
+          (m.license && m.license.toLowerCase().includes(q)) ||
           m.tags.some((t) => t.toLowerCase().includes(q))
       );
     }
 
     // 2. Category
     if (selectedCategory !== 'All') {
-      result = result.filter((m) => m.category === selectedCategory);
+      result = result.filter((m) => m.category.toLowerCase() === selectedCategory.toLowerCase());
     }
 
     // 3. Provider
     if (selectedProvider !== 'All') {
-      result = result.filter((m) => m.provider === selectedProvider);
+      result = result.filter((m) => (m.provider === selectedProvider || m.creator === selectedProvider));
     }
 
     // 4. Open-Source vs Proprietary
@@ -316,10 +315,50 @@ export const Discover: React.FC = () => {
             </button>
           </div>
         )}
+
+        {/* Database Error Banner (if any) */}
+        {modelsError && (
+          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs">
+            <div className="flex items-center gap-2">
+              <AlertCircle size={15} className="text-amber-400 shrink-0" />
+              <span>Could not sync live models: {modelsError}. Showing cached foundation models.</span>
+            </div>
+            <button
+              onClick={() => refreshModels()}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold cursor-pointer transition-colors"
+            >
+              <RefreshCw size={12} /> Retry
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Model Cards Grid */}
-      {filteredModels.length === 0 ? (
+      {modelsLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div
+              key={i}
+              className="rounded-2xl bg-white/[0.03] border border-white/10 p-5 animate-pulse flex flex-col justify-between h-80"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-white/10"></div>
+                    <div className="h-3 w-20 bg-white/10 rounded"></div>
+                  </div>
+                  <div className="h-5 w-16 bg-white/10 rounded"></div>
+                </div>
+                <div className="h-5 w-40 bg-white/10 rounded mb-2"></div>
+                <div className="h-3 w-full bg-white/10 rounded mb-2"></div>
+                <div className="h-3 w-3/4 bg-white/10 rounded mb-4"></div>
+                <div className="h-12 w-full bg-white/5 rounded-xl mb-4"></div>
+              </div>
+              <div className="h-10 w-full bg-white/10 rounded-xl"></div>
+            </div>
+          ))}
+        </div>
+      ) : filteredModels.length === 0 ? (
         <div className="rounded-3xl glass-panel p-12 text-center flex flex-col items-center gap-4 border border-white/10">
           <Search size={44} className="text-slate-600" />
           <h2 className="font-display text-xl font-bold text-white">No AI Models Found</h2>

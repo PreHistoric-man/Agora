@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import {
   mockModels,
@@ -12,6 +12,7 @@ import type {
   CommunityPost,
   WorkshopItem
 } from '../data/mockData';
+import { ModelService } from '../services/ModelService';
 
 export type ViewType =
   | 'store'
@@ -80,6 +81,11 @@ export interface CheckoutResult {
 
 interface AppContextType {
   models: Model[];
+  modelsLoading: boolean;
+  modelsError: string | null;
+  isFromDatabase: boolean;
+  categories: string[];
+  refreshModels: () => Promise<void>;
   creators: Creator[];
   posts: CommunityPost[];
   workshopItems: WorkshopItem[];
@@ -172,6 +178,9 @@ const initialActiveApis: ActiveApi[] = [
 export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [models, setModels] = useState<Model[]>(mockModels);
+  const [modelsLoading, setModelsLoading] = useState<boolean>(true);
+  const [modelsError, setModelsError] = useState<string | null>(null);
+  const [isFromDatabase, setIsFromDatabase] = useState<boolean>(false);
   const [creators] = useState<Creator[]>(mockCreators);
   const [posts, setPosts] = useState<CommunityPost[]>(mockCommunityPosts);
   const [workshopItems, setWorkshopItems] = useState<WorkshopItem[]>(mockWorkshopItems);
@@ -182,6 +191,44 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [followedCreatorIds, setFollowedCreatorIds] = useState<string[]>(['c2', 'c3']);
+
+  // Fetch real AI models from Supabase `models` table
+  const refreshModels = useCallback(async () => {
+    setModelsLoading(true);
+    setModelsError(null);
+    try {
+      const result = await ModelService.getAllModels();
+      if (result.data && result.data.length > 0) {
+        setModels(result.data);
+        setIsFromDatabase(result.fromDatabase);
+        // Ensure selectedModelId exists in loaded models
+        if (!result.data.some((m) => m.id === selectedModelId)) {
+          setSelectedModelId(result.data[0].id);
+        }
+      }
+      if (result.error) {
+        setModelsError(result.error);
+      }
+    } catch (err: any) {
+      console.warn('Error in refreshModels:', err);
+      setModelsError(err?.message || 'Failed to fetch models');
+    } finally {
+      setModelsLoading(false);
+    }
+  }, [selectedModelId]);
+
+  useEffect(() => {
+    refreshModels();
+  }, [refreshModels]);
+
+  // Dynamically derive categories from all loaded models
+  const categories = useMemo(() => {
+    const cats = new Set<string>();
+    models.forEach((m) => {
+      if (m.category) cats.add(m.category);
+    });
+    return ['All', ...Array.from(cats)];
+  }, [models]);
 
   // Cart State (Pre-seeded with 1 item for immediate rich demo)
   const [cart, setCart] = useState<CartItem[]>([
@@ -545,6 +592,11 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     <AppContext.Provider
       value={{
         models,
+        modelsLoading,
+        modelsError,
+        isFromDatabase,
+        categories,
+        refreshModels,
         creators,
         posts,
         workshopItems,

@@ -1,4 +1,7 @@
 {
   "name": "Agora",
-  "description": "Agora - Gathering Place for Ai Geeks: Marketplace, sandbox, discounts, and deployment engine for AI models."
+  "description": "Agora - Gathering Place for Ai Geeks: Marketplace, sandbox, discounts, and deployment engine for AI models.",
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

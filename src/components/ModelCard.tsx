@@ -15,7 +15,9 @@ import {
   Globe,
   Coins,
   Star,
-  ThumbsUp
+  ThumbsUp,
+  ShieldCheck,
+  Cpu
 } from 'lucide-react';
 
 interface ModelCardProps {
@@ -77,23 +79,30 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onSelect }) => {
       ></div>
 
       <div>
-        {/* Top Header: Provider & Badges */}
+        {/* Top Header: Provider, Creator, Verified & Badges */}
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 text-sm border border-white/10 shadow-inner">
               {model.providerLogo}
             </span>
             <div>
-              <span className="font-display text-xs font-bold text-slate-300 tracking-wide block">
-                {model.provider}
-              </span>
+              <div className="flex items-center gap-1">
+                <span className="font-display text-xs font-bold text-slate-300 tracking-wide block">
+                  {model.creator || model.provider}
+                </span>
+                {model.verified && (
+                  <span title="Verified Model">
+                    <ShieldCheck size={12} className="text-cyan-400 shrink-0" />
+                  </span>
+                )}
+              </div>
               <span className="font-sans text-[10px] text-slate-400 block -mt-0.5">
-                {model.category} API
+                {model.category} API {model.version ? `• ${model.version}` : ''}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
             {/* Open Source vs Proprietary Badge */}
             <span
               className={`rounded-md px-2 py-0.5 font-display text-[10px] font-bold border flex items-center gap-1 ${
@@ -138,7 +147,7 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onSelect }) => {
           {model.description}
         </p>
 
-        {/* Compact Steam-Style Rating & Recommendation Summary */}
+        {/* Compact Rating & Recommendation Summary */}
         <div className="flex items-center justify-between text-[11px] bg-black/40 px-2.5 py-1.5 rounded-xl border border-white/5 mb-3.5 font-sans">
           <div className="flex items-center gap-1.5">
             <span className="flex items-center text-amber-400 font-bold">
@@ -190,17 +199,24 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onSelect }) => {
           </div>
         </div>
 
-        {/* Specs Pill List (Context, License, Access) */}
+        {/* Specs Pill List (Context, License, Parameters/Model Size, Deployable) */}
         <div className="flex flex-wrap items-center gap-1.5 mb-4 text-[10px]">
           <span className="rounded bg-white/5 px-2 py-0.5 text-slate-300 border border-white/5 flex items-center gap-1">
             <Layers size={10} className="text-cyan-400" /> {model.contextWindow}
           </span>
-          <span className="rounded bg-white/5 px-2 py-0.5 text-slate-300 border border-white/5 truncate max-w-[130px]">
+          {(model.model_size || model.parameters) && (
+            <span className="rounded bg-white/5 px-2 py-0.5 text-slate-300 border border-white/5 flex items-center gap-1 truncate max-w-[120px]">
+              <Cpu size={10} className="text-indigo-400" /> {model.model_size || model.parameters}
+            </span>
+          )}
+          <span className="rounded bg-white/5 px-2 py-0.5 text-slate-300 border border-white/5 truncate max-w-[110px]">
             {model.license}
           </span>
-          <span className="rounded bg-cyan-500/10 px-2 py-0.5 text-cyan-300 border border-cyan-500/20">
-            {model.accessMethods[0] || 'REST API'}
-          </span>
+          {model.deployable && (
+            <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-emerald-300 border border-emerald-500/20">
+              Deployable
+            </span>
+          )}
         </div>
       </div>
 

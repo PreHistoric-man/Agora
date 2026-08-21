@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { ModelCard } from './ModelCard';
 import {
@@ -12,13 +12,44 @@ import {
 } from 'lucide-react';
 
 export const StoreHome: React.FC = () => {
-  const { models, setView, setSelectedModelId } = useApp();
+  const { models, modelsLoading, setView, setSelectedModelId } = useApp();
 
-  // Highlighted Top Models
-  const flagshipModels = models.slice(0, 6);
-  const reasoningLeader = models.find((m) => m.id === 'deepseek-r1') || models[0];
-  const codingLeader = models.find((m) => m.id === 'claude-3-5-sonnet') || models[1];
-  const visionLeader = models.find((m) => m.id === 'gemini-1-5-pro') || models[2];
+  // Highlighted Top Models from database (filter featured & trending)
+  const featuredModels = useMemo(() => {
+    const featured = models.filter((m) => m.featured);
+    return featured.length > 0 ? featured : models;
+  }, [models]);
+
+  const trendingModels = useMemo(() => {
+    const trending = models.filter((m) => m.trending);
+    return trending.length > 0 ? trending.slice(0, 6) : models.slice(0, 6);
+  }, [models]);
+
+  const reasoningLeader = useMemo(() => {
+    return (
+      featuredModels.find((m) => m.category.toLowerCase() === 'reasoning' || m.id.includes('deepseek') || m.id.includes('o3') || m.id.includes('r1')) ||
+      featuredModels[0] ||
+      models[0]
+    );
+  }, [featuredModels, models]);
+
+  const codingLeader = useMemo(() => {
+    return (
+      featuredModels.find((m) => m.category.toLowerCase() === 'coding' || m.id.includes('claude') || m.id.includes('coder') || m.id.includes('sonnet')) ||
+      featuredModels[1] ||
+      models[1] ||
+      models[0]
+    );
+  }, [featuredModels, models]);
+
+  const visionLeader = useMemo(() => {
+    return (
+      featuredModels.find((m) => m.category.toLowerCase() === 'vision' || m.category.toLowerCase() === 'multimodal' || m.id.includes('gemini') || m.id.includes('gpt-4o')) ||
+      featuredModels[2] ||
+      models[2] ||
+      models[0]
+    );
+  }, [featuredModels, models]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 md:py-12 animate-fade-in text-left flex flex-col gap-14">
@@ -235,9 +266,33 @@ export const StoreHome: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {flagshipModels.map((model) => (
-            <ModelCard key={model.id} model={model} />
-          ))}
+          {modelsLoading ? (
+            [1, 2, 3, 4, 5, 6].map((i) => (
+              <div
+                key={i}
+                className="rounded-2xl bg-white/[0.03] border border-white/10 p-5 animate-pulse flex flex-col justify-between h-80"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-white/10"></div>
+                      <div className="h-3 w-20 bg-white/10 rounded"></div>
+                    </div>
+                    <div className="h-5 w-16 bg-white/10 rounded"></div>
+                  </div>
+                  <div className="h-5 w-40 bg-white/10 rounded mb-2"></div>
+                  <div className="h-3 w-full bg-white/10 rounded mb-2"></div>
+                  <div className="h-3 w-3/4 bg-white/10 rounded mb-4"></div>
+                  <div className="h-12 w-full bg-white/5 rounded-xl mb-4"></div>
+                </div>
+                <div className="h-10 w-full bg-white/10 rounded-xl"></div>
+              </div>
+            ))
+          ) : (
+            trendingModels.map((model) => (
+              <ModelCard key={model.id} model={model} />
+            ))
+          )}
         </div>
       </div>
 

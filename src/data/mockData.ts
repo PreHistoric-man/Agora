@@ -82,6 +82,21 @@ export interface Model {
   };
   benchmarks: Benchmark[];
   
+  // Supabase Database Fields & Extended Metadata
+  creator?: string;
+  model_size?: string;
+  modelSize?: string;
+  runtime?: string;
+  thumbnail_url?: string;
+  thumbnailUrl?: string;
+  banner_url?: string;
+  bannerUrl?: string;
+  featured?: boolean;
+  trending?: boolean;
+  deployable?: boolean;
+  verified?: boolean;
+  slug?: string;
+
   // App state helpers
   wishlisted: boolean;
 }

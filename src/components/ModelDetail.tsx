@@ -119,12 +119,17 @@ export const ModelDetail: React.FC = () => {
             </span>
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                <span className="font-display text-xs font-bold text-slate-300">
-                  {model.provider}
+                <span className="font-display text-xs font-bold text-slate-300 flex items-center gap-1">
+                  {model.creator || model.provider}
+                  {model.verified && (
+                    <span title="Verified Creator & Model">
+                      <ShieldCheck size={12} className="text-cyan-400 shrink-0" />
+                    </span>
+                  )}
                 </span>
                 <span className="text-slate-600">•</span>
                 <span className="font-sans text-xs text-cyan-400 font-semibold">
-                  {model.category} Model API
+                  {model.category} Model API {model.version ? `• ${model.version}` : ''}
                 </span>
                 <span className="text-slate-600">•</span>
                 <span
@@ -137,6 +142,11 @@ export const ModelDetail: React.FC = () => {
                   {model.isOpenSource ? <Globe size={10} /> : <Lock size={10} />}
                   {model.isOpenSource ? 'Open Weights' : 'Proprietary Commercial'}
                 </span>
+                {model.deployable && (
+                  <span className="rounded-md px-2 py-0.5 font-display text-[10px] font-bold border bg-emerald-500/10 text-emerald-300 border-emerald-500/30">
+                    Deployable
+                  </span>
+                )}
               </div>
 
               <h1 className="font-display text-2xl md:text-4xl font-black tracking-tight text-white mb-2">
@@ -407,14 +417,30 @@ export const ModelDetail: React.FC = () => {
             {/* SECTION 6: LICENSE & GOVERNANCE */}
             <div className="rounded-2xl glass-panel p-5 border border-white/10 flex flex-col gap-3">
               <h3 className="font-display text-sm font-black text-white flex items-center gap-2">
-                <ShieldCheck size={14} className="text-emerald-400" /> Licensing & Terms
+                <ShieldCheck size={14} className="text-emerald-400" /> Licensing & Model Details
               </h3>
 
-              <div className="p-3 bg-black/40 rounded-xl border border-white/5 text-xs flex flex-col gap-1.5">
-                <span className="font-semibold text-slate-200">
-                  {model.isOpenSource ? 'Open Source Weights' : 'Commercial Proprietary'}
-                </span>
-                <span className="text-slate-400 text-[11px]">{model.license}</span>
+              <div className="flex flex-col gap-2 text-xs">
+                <div className="flex justify-between p-2.5 rounded-lg bg-black/40 border border-white/5">
+                  <span className="text-slate-400">Creator / Provider</span>
+                  <span className="font-semibold text-slate-200">{model.creator || model.provider}</span>
+                </div>
+                <div className="flex justify-between p-2.5 rounded-lg bg-black/40 border border-white/5">
+                  <span className="text-slate-400">Parameters / Size</span>
+                  <span className="font-mono font-bold text-cyan-300">{model.model_size || model.parameters}</span>
+                </div>
+                <div className="flex justify-between p-2.5 rounded-lg bg-black/40 border border-white/5">
+                  <span className="text-slate-400">Inference Runtime</span>
+                  <span className="font-semibold text-slate-200">{model.runtime}</span>
+                </div>
+                <div className="flex justify-between p-2.5 rounded-lg bg-black/40 border border-white/5">
+                  <span className="text-slate-400">Version Release</span>
+                  <span className="font-mono text-slate-300">{model.version}</span>
+                </div>
+                <div className="flex justify-between p-2.5 rounded-lg bg-black/40 border border-white/5">
+                  <span className="text-slate-400">License</span>
+                  <span className="font-semibold text-emerald-400">{model.license}</span>
+                </div>
               </div>
             </div>
 
