@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Model } from '../data/mockData';
+import { CommunityReviews } from './CommunityReviews';
 import {
   Sparkles,
   Zap,
@@ -18,7 +19,12 @@ import {
   Terminal,
   ShieldCheck,
   CheckCircle2,
-  Heart
+  Heart,
+  MessageSquare,
+  BarChart3,
+  Code2,
+  Star,
+  ThumbsUp
 } from 'lucide-react';
 
 export const ModelDetail: React.FC = () => {
@@ -35,12 +41,15 @@ export const ModelDetail: React.FC = () => {
     addToast
   } = useApp();
 
+  const [activeTab, setActiveTab] = useState<'reviews' | 'specs' | 'code' | 'all'>('reviews');
   const [activeCodeTab, setActiveCodeTab] = useState<'curl' | 'python' | 'node'>('python');
   const [copiedCode, setCopiedCode] = useState(false);
 
   const model = models.find((m) => m.id === selectedModelId) || models[0];
   const inCart = isInCart(model.id);
   const inCompare = isInCompare(model.id);
+
+  const recPercentage = Math.min(99, Math.max(70, Math.round(model.rating * 19.5)));
 
   const alternativeModels = model.alternatives
     ?.map((altId) => models.find((m) => m.id === altId))
@@ -98,7 +107,7 @@ export const ModelDetail: React.FC = () => {
       </div>
 
       {/* Main Hero Header */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-black to-slate-900 border border-white/10 p-6 md:p-10 shadow-2xl mb-10">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-black to-slate-900 border border-white/10 p-6 md:p-10 shadow-2xl mb-8">
         <div
           className={`absolute -top-24 -right-24 w-96 h-96 bg-gradient-to-br ${model.artwork} rounded-full blur-3xl opacity-20 pointer-events-none`}
         ></div>
@@ -134,9 +143,37 @@ export const ModelDetail: React.FC = () => {
                 {model.name}
               </h1>
 
-              <p className="font-sans text-xs md:text-sm text-slate-300 max-w-2xl leading-relaxed">
+              <p className="font-sans text-xs md:text-sm text-slate-300 max-w-2xl leading-relaxed mb-3">
                 {model.longDescription}
               </p>
+
+              {/* Steam Community Rating Header Snapshot */}
+              <div
+                onClick={() => setActiveTab('reviews')}
+                className="inline-flex flex-wrap items-center gap-3 bg-black/60 hover:bg-black/80 px-3.5 py-2 rounded-xl border border-white/10 hover:border-cyan-500/40 cursor-pointer transition-all shadow-md group"
+              >
+                <div className="flex items-center gap-1 text-amber-400 font-bold text-xs">
+                  <Star size={13} className="fill-amber-400" />
+                  <span>{model.rating.toFixed(1)}</span>
+                </div>
+
+                <span className="text-slate-600">•</span>
+
+                <div className="flex items-center gap-1.5 text-xs text-cyan-300 font-semibold">
+                  <ThumbsUp size={12} className="fill-cyan-400/20" />
+                  <span>{recPercentage}% Recommended</span>
+                </div>
+
+                <span className="text-slate-600">•</span>
+
+                <span className="rounded bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-cyan-400 border border-cyan-500/20">
+                  Very Positive
+                </span>
+
+                <span className="text-[11px] text-slate-400 font-mono group-hover:text-cyan-300 transition-colors">
+                  ({model.reviewCount > 1000 ? `${(model.reviewCount / 1000).toFixed(1)}K` : model.reviewCount} Reviews)
+                </span>
+              </div>
             </div>
           </div>
 
@@ -201,274 +238,333 @@ export const ModelDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Grid Layout: Main Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left 8 Cols: Overview, Capabilities, Performance, API Specs */}
-        <div className="lg:col-span-8 flex flex-col gap-8">
-          {/* SECTION 1: OVERVIEW & BEST FOR */}
-          <div className="rounded-2xl glass-panel p-6 border border-white/10 flex flex-col gap-4">
-            <h2 className="font-display text-base font-black text-white flex items-center gap-2">
-              <Sparkles size={16} className="text-cyan-400" /> Model Overview & Key Highlights
-            </h2>
+      {/* TOP NAVIGATION TABS (Reviews in front by default!) */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 pb-4 mb-6">
+        <button
+          onClick={() => setActiveTab('reviews')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-display text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+            activeTab === 'reviews'
+              ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-lg shadow-cyan-500/20'
+              : 'bg-black/40 text-slate-400 hover:text-white hover:bg-white/5 border border-white/5'
+          }`}
+        >
+          <MessageSquare size={14} /> Community Reviews & Ratings (Front)
+        </button>
 
-            <div className="p-4 rounded-xl bg-black/40 border border-cyan-500/20 text-xs text-slate-300 leading-relaxed font-sans">
-              <strong className="text-cyan-300 font-semibold block mb-1">What this model is best at:</strong>
-              {model.bestFor}
-            </div>
+        <button
+          onClick={() => setActiveTab('specs')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-display text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+            activeTab === 'specs'
+              ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-lg shadow-cyan-500/20'
+              : 'bg-black/40 text-slate-400 hover:text-white hover:bg-white/5 border border-white/5'
+          }`}
+        >
+          <BarChart3 size={14} /> Benchmarks & Capabilities
+        </button>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                <span className="text-[10px] text-slate-400 block">Overall Benchmark</span>
-                <span className="font-display text-base font-black text-cyan-300">{model.overallScore} / 100</span>
-              </div>
-              <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                <span className="text-[10px] text-slate-400 block">Context Window</span>
-                <span className="font-display text-base font-black text-white">{model.contextWindow}</span>
-              </div>
-              <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                <span className="text-[10px] text-slate-400 block">Inference Speed</span>
-                <span className="font-display text-base font-black text-amber-300">{model.speedTokensPerSec} tok/s</span>
-              </div>
-              <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                <span className="text-[10px] text-slate-400 block">Time to First Token</span>
-                <span className="font-display text-base font-black text-slate-200">~{model.latencyMs} ms</span>
-              </div>
-            </div>
-          </div>
+        <button
+          onClick={() => setActiveTab('code')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-display text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+            activeTab === 'code'
+              ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-lg shadow-cyan-500/20'
+              : 'bg-black/40 text-slate-400 hover:text-white hover:bg-white/5 border border-white/5'
+          }`}
+        >
+          <Code2 size={14} /> API Code & Integration
+        </button>
 
-          {/* SECTION 2: CAPABILITIES */}
-          <div className="rounded-2xl glass-panel p-6 border border-white/10 flex flex-col gap-4">
-            <h2 className="font-display text-base font-black text-white flex items-center gap-2">
-              <Layers size={16} className="text-cyan-400" /> Supported Model Capabilities
-            </h2>
+        <button
+          onClick={() => setActiveTab('all')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-display text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+            activeTab === 'all'
+              ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-lg shadow-cyan-500/20'
+              : 'bg-black/40 text-slate-400 hover:text-white hover:bg-white/5 border border-white/5'
+          }`}
+        >
+          <Layers size={14} /> All Model Details
+        </button>
+      </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {model.capabilities.map((cap) => (
-                <div
-                  key={cap}
-                  className="flex items-center gap-2.5 p-3 rounded-xl bg-black/40 border border-white/5 text-xs text-slate-200"
-                >
-                  <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
-                  <span>{cap}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* SECTION 3: PERFORMANCE BENCHMARKS */}
-          <div className="rounded-2xl glass-panel p-6 border border-white/10 flex flex-col gap-4">
-            <h2 className="font-display text-base font-black text-white flex items-center gap-2">
-              <Brain size={16} className="text-indigo-400" /> Performance & Benchmark Scores
-            </h2>
-
-            <div className="flex flex-col gap-4">
-              {model.benchmarks.map((bm) => (
-                <div key={bm.name} className="flex flex-col gap-1.5 text-xs">
-                  <div className="flex justify-between text-slate-300 font-medium">
-                    <span>{bm.name}</span>
-                    <span className="font-mono font-bold text-cyan-300">{bm.score}%</span>
-                  </div>
-                  <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-full"
-                      style={{ width: `${Math.min(100, bm.score)}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* SECTION 4: API ACCESS & CODE EXAMPLES */}
-          <div className="rounded-2xl glass-panel p-6 border border-white/10 flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-base font-black text-white flex items-center gap-2">
-                <Terminal size={16} className="text-cyan-400" /> API Access & Integration Quickstart
-              </h2>
-              <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                OpenAI SDK Compatible
-              </span>
-            </div>
-
-            <div className="p-3 rounded-xl bg-black/50 border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-              <span className="font-mono text-slate-300 truncate">
-                <strong className="text-slate-500 font-normal">POST </strong>
-                {model.endpoint}
-              </span>
-              <span className="text-[10px] text-cyan-400 font-mono">
-                Model: "{model.modelEndpointId}"
-              </span>
-            </div>
-
-            {/* Code Tabs */}
-            <div className="rounded-xl border border-white/10 overflow-hidden">
-              <div className="flex items-center justify-between bg-black/60 px-4 py-2 border-b border-white/10">
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => setActiveCodeTab('python')}
-                    className={`px-3 py-1 rounded-lg text-xs font-semibold ${
-                      activeCodeTab === 'python'
-                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Python
-                  </button>
-                  <button
-                    onClick={() => setActiveCodeTab('node')}
-                    className={`px-3 py-1 rounded-lg text-xs font-semibold ${
-                      activeCodeTab === 'node'
-                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Node.js / TS
-                  </button>
-                  <button
-                    onClick={() => setActiveCodeTab('curl')}
-                    className={`px-3 py-1 rounded-lg text-xs font-semibold ${
-                      activeCodeTab === 'curl'
-                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    cURL
-                  </button>
-                </div>
-
-                <button
-                  onClick={() => handleCopySnippet(getActiveSnippet())}
-                  className="text-xs text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer"
-                >
-                  {copiedCode ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                  {copiedCode ? 'Copied' : 'Copy'}
-                </button>
-              </div>
-
-              <div className="p-4 bg-black/90 font-mono text-xs text-slate-300 overflow-x-auto leading-relaxed max-h-80">
-                <pre>{getActiveSnippet()}</pre>
-              </div>
-            </div>
-          </div>
+      {/* SECTION: COMMUNITY REVIEWS IN THE FRONT */}
+      {(activeTab === 'reviews' || activeTab === 'all') && (
+        <div className="mb-10">
+          <CommunityReviews model={model} />
         </div>
+      )}
 
-        {/* Right 4 Cols: License, Hardware, Alternatives & Pricing breakdown */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
-          {/* SECTION 5: PRICING BREAKDOWN */}
-          <div className="rounded-2xl glass-panel p-5 border border-white/10 flex flex-col gap-3.5">
-            <h3 className="font-display text-sm font-black text-white flex items-center gap-2">
-              <Coins size={14} className="text-cyan-400" /> API Token Pricing Details
-            </h3>
+      {/* SECTION: BENCHMARKS & CAPABILITIES */}
+      {(activeTab === 'specs' || activeTab === 'all') && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-10">
+          {/* Left 8 Cols: Overview, Capabilities, Performance */}
+          <div className="lg:col-span-8 flex flex-col gap-8">
+            {/* SECTION 1: OVERVIEW & BEST FOR */}
+            <div className="rounded-2xl glass-panel p-6 border border-white/10 flex flex-col gap-4">
+              <h2 className="font-display text-base font-black text-white flex items-center gap-2">
+                <Sparkles size={16} className="text-cyan-400" /> Model Overview & Key Highlights
+              </h2>
 
-            <div className="flex flex-col gap-2 text-xs">
-              <div className="flex justify-between p-2.5 rounded-lg bg-black/40 border border-white/5">
-                <span className="text-slate-400">Prompt Input</span>
-                <span className="font-mono font-bold text-white">${model.inputPricePerMillion.toFixed(2)} / 1M</span>
+              <div className="p-4 rounded-xl bg-black/40 border border-cyan-500/20 text-xs text-slate-300 leading-relaxed font-sans">
+                <strong className="text-cyan-300 font-semibold block mb-1">What this model is best at:</strong>
+                {model.bestFor}
               </div>
-              <div className="flex justify-between p-2.5 rounded-lg bg-black/40 border border-white/5">
-                <span className="text-slate-400">Output Completion</span>
-                <span className="font-mono font-bold text-cyan-300">${model.outputPricePerMillion.toFixed(2)} / 1M</span>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                  <span className="text-[10px] text-slate-400 block">Overall Benchmark</span>
+                  <span className="font-display text-base font-black text-cyan-300">{model.overallScore} / 100</span>
+                </div>
+                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                  <span className="text-[10px] text-slate-400 block">Context Window</span>
+                  <span className="font-display text-base font-black text-white">{model.contextWindow}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                  <span className="text-[10px] text-slate-400 block">Inference Speed</span>
+                  <span className="font-display text-base font-black text-amber-300">{model.speedTokensPerSec} tok/s</span>
+                </div>
+                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                  <span className="text-[10px] text-slate-400 block">Time to First Token</span>
+                  <span className="font-display text-base font-black text-slate-200">~{model.latencyMs} ms</span>
+                </div>
               </div>
-              {model.cachedInputPricePerMillion && (
-                <div className="flex justify-between p-2.5 rounded-lg bg-black/40 border border-white/5">
-                  <span className="text-slate-400">Cached Prompt Read</span>
-                  <span className="font-mono font-bold text-emerald-400">${model.cachedInputPricePerMillion.toFixed(2)} / 1M</span>
-                </div>
-              )}
-              {model.batchDiscountPercent && (
-                <div className="flex justify-between p-2.5 rounded-lg bg-black/40 border border-white/5">
-                  <span className="text-slate-400">Batch API Discount</span>
-                  <span className="font-mono font-bold text-amber-300">{model.batchDiscountPercent}% Off</span>
-                </div>
-              )}
             </div>
-          </div>
 
-          {/* SECTION 6: LICENSE & GOVERNANCE */}
-          <div className="rounded-2xl glass-panel p-5 border border-white/10 flex flex-col gap-3">
-            <h3 className="font-display text-sm font-black text-white flex items-center gap-2">
-              <ShieldCheck size={14} className="text-emerald-400" /> Licensing & Terms
-            </h3>
+            {/* SECTION 2: CAPABILITIES */}
+            <div className="rounded-2xl glass-panel p-6 border border-white/10 flex flex-col gap-4">
+              <h2 className="font-display text-base font-black text-white flex items-center gap-2">
+                <Layers size={16} className="text-cyan-400" /> Supported Model Capabilities
+              </h2>
 
-            <div className="p-3 bg-black/40 rounded-xl border border-white/5 text-xs flex flex-col gap-1.5">
-              <span className="font-semibold text-slate-200">
-                {model.isOpenSource ? 'Open Source Weights' : 'Commercial Proprietary'}
-              </span>
-              <span className="text-slate-400 text-[11px]">{model.license}</span>
-            </div>
-          </div>
-
-          {/* SECTION 7: HARDWARE REQUIREMENTS (IF SELF-HOSTING) */}
-          <div className="rounded-2xl glass-panel p-5 border border-white/10 flex flex-col gap-3">
-            <h3 className="font-display text-sm font-black text-white flex items-center gap-2">
-              <Cpu size={14} className="text-indigo-400" /> Self-Hosting Hardware Specs
-            </h3>
-
-            {model.hardwareRequirements ? (
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="p-2.5 rounded-lg bg-black/40 border border-white/5">
-                  <span className="text-[10px] text-slate-400 block">GPU</span>
-                  <span className="font-semibold text-slate-200 truncate block">{model.hardwareRequirements.gpu}</span>
-                </div>
-                <div className="p-2.5 rounded-lg bg-black/40 border border-white/5">
-                  <span className="text-[10px] text-slate-400 block">VRAM</span>
-                  <span className="font-semibold text-slate-200">{model.hardwareRequirements.vram}</span>
-                </div>
-                <div className="p-2.5 rounded-lg bg-black/40 border border-white/5">
-                  <span className="text-[10px] text-slate-400 block">System RAM</span>
-                  <span className="font-semibold text-slate-200">{model.hardwareRequirements.ram}</span>
-                </div>
-                <div className="p-2.5 rounded-lg bg-black/40 border border-white/5">
-                  <span className="text-[10px] text-slate-400 block">Storage</span>
-                  <span className="font-semibold text-slate-200">{model.hardwareRequirements.storage}</span>
-                </div>
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400 italic">
-                This foundation model is served exclusively through high-throughput cloud API gateways.
-              </p>
-            )}
-          </div>
-
-          {/* SECTION 8: SIMILAR ALTERNATIVE MODELS */}
-          {alternativeModels.length > 0 && (
-            <div className="rounded-2xl glass-panel p-5 border border-white/10 flex flex-col gap-3">
-              <h3 className="font-display text-sm font-black text-white flex items-center gap-2">
-                <Scale size={14} className="text-cyan-400" /> Similar Alternative Models
-              </h3>
-
-              <div className="flex flex-col gap-2">
-                {alternativeModels.map((alt) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {model.capabilities.map((cap) => (
                   <div
-                    key={alt.id}
-                    onClick={() => {
-                      setSelectedModelId(alt.id);
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
-                    className="flex items-center justify-between p-2.5 rounded-xl bg-black/40 hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/30 transition-all cursor-pointer group"
+                    key={cap}
+                    className="flex items-center gap-2.5 p-3 rounded-xl bg-black/40 border border-white/5 text-xs text-slate-200"
                   >
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-lg">{alt.providerLogo}</span>
-                      <div>
-                        <span className="font-display text-xs font-bold text-white group-hover:text-cyan-300 block">
-                          {alt.name}
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          {alt.provider} • Score: {alt.overallScore}
-                        </span>
-                      </div>
-                    </div>
-
-                    <span className="text-[10px] text-cyan-400 font-mono">
-                      ${alt.inputPricePerMillion}/1M
-                    </span>
+                    <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+                    <span>{cap}</span>
                   </div>
                 ))}
               </div>
             </div>
-          )}
+
+            {/* SECTION 3: PERFORMANCE BENCHMARKS */}
+            <div className="rounded-2xl glass-panel p-6 border border-white/10 flex flex-col gap-4">
+              <h2 className="font-display text-base font-black text-white flex items-center gap-2">
+                <Brain size={16} className="text-indigo-400" /> Performance & Benchmark Scores
+              </h2>
+
+              <div className="flex flex-col gap-4">
+                {model.benchmarks.map((bm) => (
+                  <div key={bm.name} className="flex flex-col gap-1.5 text-xs">
+                    <div className="flex justify-between text-slate-300 font-medium">
+                      <span>{bm.name}</span>
+                      <span className="font-mono font-bold text-cyan-300">{bm.score}%</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-full"
+                        style={{ width: `${Math.min(100, bm.score)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right 4 Cols: License, Hardware, Alternatives & Pricing */}
+          <div className="lg:col-span-4 flex flex-col gap-6">
+            {/* SECTION 5: PRICING BREAKDOWN */}
+            <div className="rounded-2xl glass-panel p-5 border border-white/10 flex flex-col gap-3.5">
+              <h3 className="font-display text-sm font-black text-white flex items-center gap-2">
+                <Coins size={14} className="text-cyan-400" /> API Token Pricing Details
+              </h3>
+
+              <div className="flex flex-col gap-2 text-xs">
+                <div className="flex justify-between p-2.5 rounded-lg bg-black/40 border border-white/5">
+                  <span className="text-slate-400">Prompt Input</span>
+                  <span className="font-mono font-bold text-white">${model.inputPricePerMillion.toFixed(2)} / 1M</span>
+                </div>
+                <div className="flex justify-between p-2.5 rounded-lg bg-black/40 border border-white/5">
+                  <span className="text-slate-400">Output Completion</span>
+                  <span className="font-mono font-bold text-cyan-300">${model.outputPricePerMillion.toFixed(2)} / 1M</span>
+                </div>
+                {model.cachedInputPricePerMillion && (
+                  <div className="flex justify-between p-2.5 rounded-lg bg-black/40 border border-white/5">
+                    <span className="text-slate-400">Cached Prompt Read</span>
+                    <span className="font-mono font-bold text-emerald-400">${model.cachedInputPricePerMillion.toFixed(2)} / 1M</span>
+                  </div>
+                )}
+                {model.batchDiscountPercent && (
+                  <div className="flex justify-between p-2.5 rounded-lg bg-black/40 border border-white/5">
+                    <span className="text-slate-400">Batch API Discount</span>
+                    <span className="font-mono font-bold text-amber-300">{model.batchDiscountPercent}% Off</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* SECTION 6: LICENSE & GOVERNANCE */}
+            <div className="rounded-2xl glass-panel p-5 border border-white/10 flex flex-col gap-3">
+              <h3 className="font-display text-sm font-black text-white flex items-center gap-2">
+                <ShieldCheck size={14} className="text-emerald-400" /> Licensing & Terms
+              </h3>
+
+              <div className="p-3 bg-black/40 rounded-xl border border-white/5 text-xs flex flex-col gap-1.5">
+                <span className="font-semibold text-slate-200">
+                  {model.isOpenSource ? 'Open Source Weights' : 'Commercial Proprietary'}
+                </span>
+                <span className="text-slate-400 text-[11px]">{model.license}</span>
+              </div>
+            </div>
+
+            {/* SECTION 7: HARDWARE REQUIREMENTS (IF SELF-HOSTING) */}
+            <div className="rounded-2xl glass-panel p-5 border border-white/10 flex flex-col gap-3">
+              <h3 className="font-display text-sm font-black text-white flex items-center gap-2">
+                <Cpu size={14} className="text-indigo-400" /> Self-Hosting Hardware Specs
+              </h3>
+
+              {model.hardwareRequirements ? (
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2.5 rounded-lg bg-black/40 border border-white/5">
+                    <span className="text-[10px] text-slate-400 block">GPU</span>
+                    <span className="font-semibold text-slate-200 truncate block">{model.hardwareRequirements.gpu}</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-black/40 border border-white/5">
+                    <span className="text-[10px] text-slate-400 block">VRAM</span>
+                    <span className="font-semibold text-slate-200">{model.hardwareRequirements.vram}</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-black/40 border border-white/5">
+                    <span className="text-[10px] text-slate-400 block">System RAM</span>
+                    <span className="font-semibold text-slate-200">{model.hardwareRequirements.ram}</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-black/40 border border-white/5">
+                    <span className="text-[10px] text-slate-400 block">Storage</span>
+                    <span className="font-semibold text-slate-200">{model.hardwareRequirements.storage}</span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 italic">
+                  This foundation model is served exclusively through high-throughput cloud API gateways.
+                </p>
+              )}
+            </div>
+
+            {/* SECTION 8: SIMILAR ALTERNATIVE MODELS */}
+            {alternativeModels.length > 0 && (
+              <div className="rounded-2xl glass-panel p-5 border border-white/10 flex flex-col gap-3">
+                <h3 className="font-display text-sm font-black text-white flex items-center gap-2">
+                  <Scale size={14} className="text-cyan-400" /> Similar Alternative Models
+                </h3>
+
+                <div className="flex flex-col gap-2">
+                  {alternativeModels.map((alt) => (
+                    <div
+                      key={alt.id}
+                      onClick={() => {
+                        setSelectedModelId(alt.id);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-black/40 hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/30 transition-all cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-lg">{alt.providerLogo}</span>
+                        <div>
+                          <span className="font-display text-xs font-bold text-white group-hover:text-cyan-300 block">
+                            {alt.name}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {alt.provider} • Score: {alt.overallScore}
+                          </span>
+                        </div>
+                      </div>
+
+                      <span className="text-[10px] text-cyan-400 font-mono">
+                        ${alt.inputPricePerMillion}/1M
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* SECTION: API ACCESS & CODE EXAMPLES */}
+      {(activeTab === 'code' || activeTab === 'all') && (
+        <div className="rounded-2xl glass-panel p-6 border border-white/10 flex flex-col gap-4 mb-10">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-base font-black text-white flex items-center gap-2">
+              <Terminal size={16} className="text-cyan-400" /> API Access & Integration Quickstart
+            </h2>
+            <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+              OpenAI SDK Compatible
+            </span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-black/50 border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+            <span className="font-mono text-slate-300 truncate">
+              <strong className="text-slate-500 font-normal">POST </strong>
+              {model.endpoint}
+            </span>
+            <span className="text-[10px] text-cyan-400 font-mono">
+              Model: "{model.modelEndpointId}"
+            </span>
+          </div>
+
+          {/* Code Tabs */}
+          <div className="rounded-xl border border-white/10 overflow-hidden">
+            <div className="flex items-center justify-between bg-black/60 px-4 py-2 border-b border-white/10">
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setActiveCodeTab('python')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold ${
+                    activeCodeTab === 'python'
+                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Python
+                </button>
+                <button
+                  onClick={() => setActiveCodeTab('node')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold ${
+                    activeCodeTab === 'node'
+                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Node.js / TS
+                </button>
+                <button
+                  onClick={() => setActiveCodeTab('curl')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold ${
+                    activeCodeTab === 'curl'
+                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  cURL
+                </button>
+              </div>
+
+              <button
+                onClick={() => handleCopySnippet(getActiveSnippet())}
+                className="text-xs text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer"
+              >
+                {copiedCode ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                {copiedCode ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+
+            <div className="p-4 bg-black/90 font-mono text-xs text-slate-300 overflow-x-auto leading-relaxed max-h-80">
+              <pre>{getActiveSnippet()}</pre>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+

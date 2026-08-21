@@ -13,7 +13,9 @@ import {
   ArrowRight,
   Lock,
   Globe,
-  Coins
+  Coins,
+  Star,
+  ThumbsUp
 } from 'lucide-react';
 
 interface ModelCardProps {
@@ -132,9 +134,28 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onSelect }) => {
           />
         </h3>
 
-        <p className="font-sans text-xs text-slate-400 line-clamp-2 leading-relaxed mb-4">
+        <p className="font-sans text-xs text-slate-400 line-clamp-2 leading-relaxed mb-3">
           {model.description}
         </p>
+
+        {/* Compact Steam-Style Rating & Recommendation Summary */}
+        <div className="flex items-center justify-between text-[11px] bg-black/40 px-2.5 py-1.5 rounded-xl border border-white/5 mb-3.5 font-sans">
+          <div className="flex items-center gap-1.5">
+            <span className="flex items-center text-amber-400 font-bold">
+              <Star size={12} className="fill-amber-400 mr-0.5" />
+              {model.rating.toFixed(1)}
+            </span>
+            <span className="text-slate-600">•</span>
+            <span className="text-cyan-300 font-semibold flex items-center gap-1">
+              <ThumbsUp size={11} className="fill-cyan-400/20" />
+              {Math.min(99, Math.max(70, Math.round(model.rating * 19.5)))}% Recommended
+            </span>
+          </div>
+
+          <span className="text-[10px] text-slate-400 font-mono">
+            {model.reviewCount > 1000 ? `${(model.reviewCount / 1000).toFixed(1)}K` : model.reviewCount} Reviews
+          </span>
+        </div>
 
         {/* Core Benchmark & Hardware Metric Grid */}
         <div className="grid grid-cols-3 gap-2 mb-4 bg-black/40 p-2.5 rounded-xl border border-white/5">
