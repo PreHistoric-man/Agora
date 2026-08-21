@@ -15,7 +15,8 @@ import {
   ShoppingCart,
   Server,
   Zap,
-  ChevronDown
+  ChevronDown,
+  Box
 } from 'lucide-react';
 import { UserProfileModal } from './UserProfileModal';
 
@@ -24,6 +25,7 @@ export const Navbar: React.FC = () => {
     currentView,
     setView,
     models,
+    libraryItems,
     cart,
     activeApis,
     comparisonModelIds,
@@ -46,6 +48,7 @@ export const Navbar: React.FC = () => {
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   const wishlistedCount = models.filter((m) => m.wishlisted).length;
+  const libraryCount = libraryItems.length;
   const unreadNotifications = notifications.filter((n) => !n.read).length;
   const cartCount = cart.length;
   const activeApisCount = activeApis.length;
@@ -58,7 +61,7 @@ export const Navbar: React.FC = () => {
     }
   };
 
-  // Nav Items per user request: Home, Models, Compare, API Marketplace, My APIs, Cart
+  // Nav Items: Home, Models, Compare, Playground, Library, My APIs
   const navItems: Array<{
     label: string;
     view: ViewType;
@@ -76,6 +79,13 @@ export const Navbar: React.FC = () => {
       badgeColor: 'bg-indigo-500'
     },
     { label: 'API Playground', view: 'try', icon: Zap },
+    {
+      label: 'Library',
+      view: 'library',
+      icon: Box,
+      badge: libraryCount > 0 ? libraryCount : undefined,
+      badgeColor: 'bg-cyan-500'
+    },
     {
       label: 'My APIs',
       view: 'my-apis',
@@ -261,11 +271,28 @@ export const Navbar: React.FC = () => {
                     <button
                       onClick={() => {
                         setShowUserDropdown(false);
+                        setView('library');
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 flex items-center justify-between cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Box size={14} className="text-cyan-400" />
+                        My Library
+                      </span>
+                      {libraryCount > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 text-[10px] font-bold">
+                          {libraryCount}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowUserDropdown(false);
                         setView('my-apis');
                       }}
                       className="w-full text-left px-3 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 flex items-center gap-2 cursor-pointer"
                     >
-                      <Server size={14} className="text-cyan-400" />
+                      <Server size={14} className="text-emerald-400" />
                       My APIs Dashboard
                     </button>
                     <button

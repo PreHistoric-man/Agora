@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Model } from '../data/mockData';
+import { ModelLogo } from './ModelLogo';
 import { CommunityReviews } from './CommunityReviews';
 import {
   Sparkles,
@@ -24,7 +25,8 @@ import {
   BarChart3,
   Code2,
   Star,
-  ThumbsUp
+  ThumbsUp,
+  Key
 } from 'lucide-react';
 
 export const ModelDetail: React.FC = () => {
@@ -38,7 +40,8 @@ export const ModelDetail: React.FC = () => {
     toggleCompare,
     isInCompare,
     toggleWishlist,
-    addToast
+    addToast,
+    isModelInLibrary
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'reviews' | 'specs' | 'code' | 'all'>('reviews');
@@ -48,6 +51,22 @@ export const ModelDetail: React.FC = () => {
   const model = models.find((m) => m.id === selectedModelId) || models[0];
   const inCart = isInCart(model.id);
   const inCompare = isInCompare(model.id);
+  const inLibrary = isModelInLibrary(model.id);
+  const isFreeModel = model.inputPricePerMillion === 0 && model.outputPricePerMillion === 0;
+
+  const handleCartAction = () => {
+    if (inCart) {
+      setView('cart');
+    } else {
+      addToCart(model.id);
+      addToast(
+        isFreeModel
+          ? `Added ${model.name} ($0.00 free license) to cart. Proceed to checkout to add to your Library!`
+          : `Added ${model.name} to cart. Proceed to checkout to add to your Library!`,
+        'success'
+      );
+    }
+  };
 
   const recPercentage = Math.min(99, Math.max(70, Math.round(model.rating * 19.5)));
 
@@ -80,6 +99,38 @@ export const ModelDetail: React.FC = () => {
         </button>
 
         <div className="flex items-center gap-2">
+          {/* Library / Cart Shortcut */}
+          {inLibrary ? (
+            <button
+              onClick={() => setView('library')}
+              className="px-3 py-2 rounded-xl border border-cyan-500/40 bg-cyan-500/20 text-cyan-300 text-xs font-display font-bold flex items-center gap-1.5 transition-colors cursor-pointer hover:bg-cyan-500/30"
+            >
+              <CheckCircle2 size={13} className="text-cyan-400" />
+              In Library
+            </button>
+          ) : (
+            <button
+              onClick={handleCartAction}
+              className={`px-3 py-2 rounded-xl border text-xs font-display font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                inCart
+                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                  : 'bg-white/5 border-white/10 text-slate-300 hover:text-white hover:border-cyan-500/30'
+              }`}
+            >
+              {inCart ? (
+                <>
+                  <Check size={13} className="text-emerald-400" />
+                  In Cart
+                </>
+              ) : (
+                <>
+                  <ShoppingCart size={13} className="text-cyan-400" />
+                  {isFreeModel ? 'Claim Free License' : 'Add to Cart'}
+                </>
+              )}
+            </button>
+          )}
+
           <button
             onClick={() => toggleWishlist(model.id)}
             className={`p-2 rounded-xl border text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
@@ -114,8 +165,8 @@ export const ModelDetail: React.FC = () => {
 
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
           <div className="flex items-start gap-4">
-            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5 text-3xl border border-white/10 shadow-inner shrink-0">
-              {model.providerLogo}
+            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5 border border-white/10 shadow-inner shrink-0">
+              <ModelLogo modelId={model.id} provider={model.provider} category={model.category} size={32} />
             </span>
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-1.5">
@@ -216,27 +267,55 @@ export const ModelDetail: React.FC = () => {
               </span>
             )}
 
-            {/* Primary Action Button */}
-            <button
-              onClick={() => (inCart ? setView('cart') : addToCart(model.id))}
-              className={`w-full py-3.5 px-4 rounded-xl font-display text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                inCart
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
-                  : 'bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-lg shadow-cyan-500/25'
-              }`}
-            >
-              {inCart ? (
-                <>
-                  <Check size={16} className="text-emerald-400" />
-                  API Added to Cart (View Cart)
-                </>
-              ) : (
-                <>
-                  <ShoppingCart size={15} />
-                  Add API to Cart
-                </>
-              )}
-            </button>
+            {/* Actions: In Library vs Checkout to Add to Library */}
+            {inLibrary ? (
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => setView('library')}
+                  className="w-full py-3.5 px-4 rounded-xl font-display text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 shadow-lg shadow-cyan-500/10"
+                >
+                  <CheckCircle2 size={16} className="text-cyan-400" />
+                  ✓ In Your Library (View)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setView('my-apis')}
+                  className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-sans font-semibold flex items-center justify-center gap-1.5 cursor-pointer border border-white/10"
+                >
+                  <Key size={13} className="text-emerald-400" /> Manage API Keys & SLA
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={handleCartAction}
+                  className={`w-full py-3.5 px-4 rounded-xl font-display text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    inCart
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
+                      : 'bg-gradient-to-r from-cyan-500 via-indigo-600 to-cyan-500 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-lg shadow-cyan-500/25'
+                  }`}
+                >
+                  {inCart ? (
+                    <>
+                      <Check size={16} className="text-emerald-400" />
+                      In Cart (Proceed to Checkout)
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart size={16} />
+                      {isFreeModel ? 'Claim Free License (Add to Cart)' : 'Add API Access to Cart'}
+                    </>
+                  )}
+                </button>
+                <span className="text-[10px] text-slate-400 text-center font-sans">
+                  {isFreeModel
+                    ? 'Free $0.00 license • Checkout to add this model to your Library'
+                    : 'Instant key provisioning • Checkout to add this model to your Library'}
+                </span>
+              </div>
+            )}
 
             <button
               onClick={() => setView('try')}

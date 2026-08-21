@@ -7,6 +7,7 @@ import { Discover } from './components/Discover';
 import { Compare } from './components/Compare';
 import { Cart } from './components/Cart';
 import { CheckoutSuccess } from './components/CheckoutSuccess';
+import { Library } from './components/Library';
 import { MyApis } from './components/MyApis';
 import { ModelDetail } from './components/ModelDetail';
 import { TryModel } from './components/TryModel';
@@ -31,6 +32,16 @@ const AppInner: React.FC = () => {
         return <Cart />;
       case 'checkout-success':
         return <CheckoutSuccess />;
+      case 'library':
+        return (
+          <ProtectedRoute
+            title="My AI Model Library"
+            description="View and manage your owned foundation models, downloaded local weights, and deployed cloud endpoints."
+            targetViewName="library"
+          >
+            <Library />
+          </ProtectedRoute>
+        );
       case 'my-apis':
         return (
           <ProtectedRoute

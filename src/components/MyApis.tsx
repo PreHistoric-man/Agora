@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { ModelLogo } from './ModelLogo';
 import {
   Server,
   Key,
@@ -175,8 +176,8 @@ export const MyApis: React.FC = () => {
                   {/* Top Row: Provider Logo & Status */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
                     <div className="flex items-center gap-3.5">
-                      <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/5 text-2xl border border-white/10 shadow-inner shrink-0">
-                        {model.providerLogo}
+                      <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/5 border border-white/10 shadow-inner shrink-0">
+                        <ModelLogo modelId={model.id} provider={model.provider} category={model.category} size={24} />
                       </span>
                       <div>
                         <div className="flex items-center gap-2">

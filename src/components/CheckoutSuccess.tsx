@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { ModelLogo } from './ModelLogo';
 import {
   CheckCircle2,
   Key,
@@ -7,7 +8,8 @@ import {
   Check,
   Terminal,
   ArrowRight,
-  Zap
+  Zap,
+  Box
 } from 'lucide-react';
 
 export const CheckoutSuccess: React.FC = () => {
@@ -64,17 +66,24 @@ export const CheckoutSuccess: React.FC = () => {
                 API Access Added Successfully
               </h1>
               <p className="font-sans text-xs text-slate-300 mt-1 max-w-xl">
-                Your AI model API credentials for <span className="text-cyan-300 font-semibold">{organizationName}</span> have been provisioned in demo sandbox mode.
+                Your AI model API credentials for <span className="text-cyan-300 font-semibold">{organizationName}</span> have been provisioned in demo sandbox mode and added to your <span className="text-cyan-300 font-semibold">Model Library</span>.
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-2.5 shrink-0">
             <button
-              onClick={() => setView('my-apis')}
+              onClick={() => setView('library')}
               className="px-5 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 font-display text-xs font-black uppercase text-white tracking-wider flex items-center gap-2 shadow-lg shadow-cyan-500/25 transition-all cursor-pointer"
             >
-              Go to My APIs Dashboard
+              <Box size={15} />
+              Go to My Library
+            </button>
+            <button
+              onClick={() => setView('my-apis')}
+              className="px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 font-display text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
+            >
+              My APIs Dashboard
               <ArrowRight size={14} />
             </button>
             <button
@@ -82,7 +91,7 @@ export const CheckoutSuccess: React.FC = () => {
               className="px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 font-display text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
             >
               <Zap size={14} className="text-cyan-400" />
-              Test in Playground
+              Playground
             </button>
           </div>
         </div>
@@ -123,7 +132,9 @@ export const CheckoutSuccess: React.FC = () => {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <span className="text-xl">{model.providerLogo}</span>
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 border border-white/10 shrink-0">
+                        <ModelLogo modelId={model.id} provider={model.provider} category={model.category} size={15} />
+                      </span>
                       <div>
                         <h3 className="font-display text-sm font-bold text-white flex items-center gap-1.5">
                           {model.name}

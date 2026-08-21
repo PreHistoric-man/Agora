@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { CartItem } from '../context/AppContext';
+import { ModelLogo } from './ModelLogo';
 import {
   ShoppingCart,
   Trash2,
@@ -162,8 +163,8 @@ export const Cart: React.FC = () => {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/5">
                     {/* Model Info Header */}
                     <div className="flex items-center gap-3.5">
-                      <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/5 text-2xl border border-white/10 shadow-inner shrink-0">
-                        {model.providerLogo}
+                      <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/5 border border-white/10 shadow-inner shrink-0">
+                        <ModelLogo modelId={model.id} provider={model.provider} category={model.category} size={24} />
                       </span>
                       <div>
                         <div className="flex items-center gap-2">
@@ -381,10 +382,10 @@ export const Cart: React.FC = () => {
 
               <div className="rounded-xl bg-white/[0.02] border border-white/5 p-3 flex flex-col gap-1.5 text-[11px] text-slate-400">
                 <span className="flex items-center gap-1.5 text-slate-300 font-semibold">
-                  <ShieldCheck size={14} className="text-cyan-400" /> Instant Sandbox Activation
+                  <ShieldCheck size={14} className="text-cyan-400" /> Automatic Library & API Activation
                 </span>
                 <p className="leading-relaxed">
-                  Upon confirmation, demo API keys, endpoint configurations, and code integration templates will be immediately generated for your developer dashboard.
+                  Upon checkout confirmation, all selected models are automatically added to your Steam-style <strong className="text-white">Model Library</strong> and your developer API keys are instantly provisioned.
                 </p>
               </div>
             </div>

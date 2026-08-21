@@ -1,6 +1,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import type { Model } from '../data/mockData';
+import { ModelLogo } from './ModelLogo';
 import {
   Sparkles,
   Zap,
@@ -17,7 +18,8 @@ import {
   Star,
   ThumbsUp,
   ShieldCheck,
-  Cpu
+  Cpu,
+  Box
 } from 'lucide-react';
 
 interface ModelCardProps {
@@ -32,11 +34,15 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onSelect }) => {
     addToCart,
     isInCart,
     toggleCompare,
-    isInCompare
+    isInCompare,
+    isModelInLibrary
   } = useApp();
 
   const inCart = isInCart(model.id);
   const inCompare = isInCompare(model.id);
+  const inLibrary = isModelInLibrary(model.id);
+
+  const isFreeModel = model.inputPricePerMillion === 0 && model.outputPricePerMillion === 0;
 
   const handleCardClick = () => {
     setSelectedModelId(model.id);
@@ -47,9 +53,11 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onSelect }) => {
     }
   };
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleActionClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (inCart) {
+    if (inLibrary) {
+      setView('library');
+    } else if (inCart) {
       setView('cart');
     } else {
       addToCart(model.id);
@@ -83,7 +91,7 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onSelect }) => {
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 text-sm border border-white/10 shadow-inner">
-              {model.providerLogo}
+              <ModelLogo modelId={model.id} provider={model.provider} category={model.category} size={15} />
             </span>
             <div>
               <div className="flex items-center gap-1">
@@ -103,6 +111,13 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onSelect }) => {
           </div>
 
           <div className="flex items-center gap-1.5 flex-wrap justify-end">
+            {/* In Library Badge */}
+            {inLibrary && (
+              <span className="rounded-md px-2 py-0.5 font-display text-[10px] font-bold border bg-cyan-500/20 text-cyan-300 border-cyan-500/40 flex items-center gap-1 shadow-sm">
+                <Box size={10} className="text-cyan-400" /> In Library
+              </span>
+            )}
+
             {/* Open Source vs Proprietary Badge */}
             <span
               className={`rounded-md px-2 py-0.5 font-display text-[10px] font-bold border flex items-center gap-1 ${
@@ -246,17 +261,24 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onSelect }) => {
 
         {/* Primary Action Buttons */}
         <div className="grid grid-cols-2 gap-2">
-          {/* Add API to Cart Button */}
+          {/* Main Action Button */}
           <button
             type="button"
-            onClick={handleAddToCart}
+            onClick={handleActionClick}
             className={`w-full py-2.5 px-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-              inCart
+              inLibrary
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30'
+                : inCart
                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
                 : 'bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-md shadow-cyan-500/20'
             }`}
           >
-            {inCart ? (
+            {inLibrary ? (
+              <>
+                <Box size={13} className="text-cyan-400" />
+                In Library
+              </>
+            ) : inCart ? (
               <>
                 <Check size={14} className="text-emerald-400" />
                 In Cart
@@ -264,7 +286,7 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model, onSelect }) => {
             ) : (
               <>
                 <ShoppingCart size={13} />
-                Add API to Cart
+                {isFreeModel ? 'Claim Free' : 'Add to Cart'}
               </>
             )}
           </button>

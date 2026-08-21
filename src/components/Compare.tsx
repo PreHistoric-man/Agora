@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Model } from '../data/mockData';
+import { ModelLogo } from './ModelLogo';
 import {
   Scale,
   Plus,
@@ -160,7 +161,9 @@ export const Compare: React.FC = () => {
                   className="flex items-center justify-between p-3 rounded-xl bg-black/40 hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/30 transition-all cursor-pointer group"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-xl">{model.providerLogo}</span>
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 border border-white/10 shrink-0">
+                      <ModelLogo modelId={model.id} provider={model.provider} category={model.category} size={15} />
+                    </span>
                     <div>
                       <span className="font-display text-xs font-bold text-white group-hover:text-cyan-300 block">
                         {model.name}
@@ -233,7 +236,9 @@ export const Compare: React.FC = () => {
                         </button>
 
                         <div className="flex items-center gap-2">
-                          <span className="text-xl">{model.providerLogo}</span>
+                          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 border border-white/10 shrink-0">
+                            <ModelLogo modelId={model.id} provider={model.provider} category={model.category} size={15} />
+                          </span>
                           <div>
                             <span className="text-[10px] font-bold text-slate-400 block font-display">
                               {model.provider}

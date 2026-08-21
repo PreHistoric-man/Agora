@@ -44,7 +44,7 @@ export const CreatorProfile: React.FC = () => {
       <section className="relative -mt-16 px-6 md:px-12 mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div className="flex flex-col md:flex-row items-start md:items-end gap-5">
           {/* Avatar */}
-          <div className="h-28 w-28 rounded-3xl bg-slate-900 border-4 border-slate-950 flex items-center justify-center text-4xl shadow-xl select-none">
+          <div className="h-28 w-28 rounded-3xl bg-gradient-to-br from-cyan-950/60 to-slate-900 border-4 border-slate-950 flex items-center justify-center font-display font-black text-2xl text-cyan-300 shadow-xl tracking-wider select-none">
             {creator.avatar}
           </div>
           

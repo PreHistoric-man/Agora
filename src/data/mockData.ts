@@ -147,7 +147,7 @@ export const mockCreators: Creator[] = [
   {
     id: 'c1',
     name: 'OpenAI',
-    avatar: '🌐',
+    avatar: 'OA',
     followers: 840000,
     installs: 45000000,
     modelCount: 6,
@@ -158,7 +158,7 @@ export const mockCreators: Creator[] = [
   {
     id: 'c2',
     name: 'Anthropic',
-    avatar: ' Claude',
+    avatar: 'AN',
     followers: 650000,
     installs: 38000000,
     modelCount: 4,
@@ -169,7 +169,7 @@ export const mockCreators: Creator[] = [
   {
     id: 'c3',
     name: 'DeepSeek',
-    avatar: '🐋',
+    avatar: 'DS',
     followers: 920000,
     installs: 52000000,
     modelCount: 5,
@@ -180,7 +180,7 @@ export const mockCreators: Creator[] = [
   {
     id: 'c4',
     name: 'Alibaba Cloud (Qwen)',
-    avatar: '⚡',
+    avatar: 'QW',
     followers: 430000,
     installs: 29000000,
     modelCount: 5,
@@ -191,7 +191,7 @@ export const mockCreators: Creator[] = [
   {
     id: 'c5',
     name: 'Meta AI',
-    avatar: '🦙',
+    avatar: 'ME',
     followers: 890000,
     installs: 61000000,
     modelCount: 4,
@@ -202,7 +202,7 @@ export const mockCreators: Creator[] = [
   {
     id: 'c6',
     name: 'Google DeepMind',
-    avatar: '✨',
+    avatar: 'GO',
     followers: 720000,
     installs: 41000000,
     modelCount: 5,
@@ -213,7 +213,7 @@ export const mockCreators: Creator[] = [
   {
     id: 'c7',
     name: 'Mistral AI',
-    avatar: '🌪️',
+    avatar: 'MI',
     followers: 380000,
     installs: 22000000,
     modelCount: 4,
@@ -224,7 +224,7 @@ export const mockCreators: Creator[] = [
   {
     id: 'c8',
     name: 'Black Forest Labs',
-    avatar: '🎨',
+    avatar: 'BF',
     followers: 290000,
     installs: 14000000,
     modelCount: 3,
@@ -235,7 +235,7 @@ export const mockCreators: Creator[] = [
   {
     id: 'c9',
     name: 'ElevenLabs',
-    avatar: '🎙️',
+    avatar: 'EL',
     followers: 310000,
     installs: 19000000,
     modelCount: 2,
@@ -246,7 +246,7 @@ export const mockCreators: Creator[] = [
   {
     id: 'c10',
     name: 'BioGen AI',
-    avatar: '🧬',
+    avatar: 'BG',
     followers: 120000,
     installs: 3200000,
     modelCount: 2,

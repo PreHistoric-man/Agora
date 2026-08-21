@@ -13,6 +13,8 @@ import type {
   WorkshopItem
 } from '../data/mockData';
 import { ModelService } from '../services/ModelService';
+import { LibraryService } from '../services/LibraryService';
+import type { LibraryItem, DeploymentStatus } from '../types/library';
 
 export type ViewType =
   | 'store'
@@ -20,6 +22,7 @@ export type ViewType =
   | 'compare'
   | 'cart'
   | 'checkout-success'
+  | 'library'
   | 'my-apis'
   | 'model-detail'
   | 'try'
@@ -98,6 +101,23 @@ interface AppContextType {
   notifications: NotificationItem[];
   followedCreatorIds: string[];
   
+  // User Library (Steam-Style Supabase Persistence)
+  libraryItems: LibraryItem[];
+  libraryModelIds: Set<string>;
+  libraryLoading: boolean;
+  isModelInLibrary: (modelId: string) => boolean;
+  addToLibrary: (modelId: string) => Promise<{ success: boolean; error?: string; alreadyInLibrary?: boolean }>;
+  removeFromLibrary: (modelId: string) => Promise<{ success: boolean; error?: string }>;
+  updateLibraryItemStatus: (
+    modelId: string,
+    updates: {
+      installed?: boolean;
+      installed_version?: string | null;
+      deployment_status?: DeploymentStatus;
+    }
+  ) => Promise<{ success: boolean; error?: string }>;
+  refreshLibrary: () => Promise<void>;
+
   // API Access Cart
   cart: CartItem[];
   addToCart: (modelId: string, accessTier?: CartItem['accessTier'], monthlyTokens?: number) => void;
@@ -249,6 +269,139 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     'claude-3-5-sonnet'
   ]);
 
+  // Toast dispatch helper
+  const addToast = useCallback((message: string, type: Toast['type'] = 'info') => {
+    const id = `toast-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    setToasts((prev) => [...prev, { id, message, type }]);
+  }, []);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Safe navigation setter
+  const setView = useCallback((view: ViewType) => {
+    setViewInternal(view);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  // User Library State (Steam-Style Supabase Persistence)
+  const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
+  const [libraryLoading, setLibraryLoading] = useState<boolean>(false);
+
+  const refreshLibrary = useCallback(async () => {
+    if (!user) {
+      setLibraryItems([]);
+      return;
+    }
+    setLibraryLoading(true);
+    try {
+      const items = await LibraryService.getUserLibrary(user.id, models);
+      setLibraryItems(items);
+    } catch (e) {
+      console.warn('Error refreshing user library:', e);
+    } finally {
+      setLibraryLoading(false);
+    }
+  }, [user, models]);
+
+  useEffect(() => {
+    refreshLibrary();
+  }, [refreshLibrary]);
+
+  const libraryModelIds = useMemo(() => {
+    return new Set(libraryItems.map((item) => item.model_id));
+  }, [libraryItems]);
+
+  const isModelInLibrary = useCallback(
+    (modelId: string) => libraryModelIds.has(modelId),
+    [libraryModelIds]
+  );
+
+  const addToLibrary = useCallback(
+    async (modelId: string): Promise<{ success: boolean; error?: string; alreadyInLibrary?: boolean }> => {
+      if (!user) {
+        return { success: false, error: 'auth_required' };
+      }
+
+      const model = models.find((m) => m.id === modelId) || mockModels.find((m) => m.id === modelId);
+      const modelName = model?.name || modelId;
+
+      try {
+        const result = await LibraryService.addToLibrary(user.id, modelId, models);
+        if (result.success) {
+          if (result.alreadyInLibrary) {
+            addToast(`${modelName} is already in your Library.`, 'info');
+            return { success: true, alreadyInLibrary: true };
+          }
+          if (result.item) {
+            setLibraryItems((prev) => {
+              if (prev.some((i) => i.model_id === modelId)) return prev;
+              return [result.item!, ...prev];
+            });
+          }
+          addToast(`Added ${modelName} to your Library!`, 'success');
+          return { success: true };
+        } else {
+          addToast('Could not add model to your library. Please try again.', 'error');
+          return { success: false, error: result.error };
+        }
+      } catch (err: any) {
+        console.error('Failed to add to library:', err);
+        addToast('Could not add model to your library. Please try again.', 'error');
+        return { success: false, error: err?.message };
+      }
+    },
+    [user, models, addToast]
+  );
+
+  const removeFromLibrary = useCallback(
+    async (modelId: string): Promise<{ success: boolean; error?: string }> => {
+      if (!user) return { success: false, error: 'auth_required' };
+
+      const model = models.find((m) => m.id === modelId) || mockModels.find((m) => m.id === modelId);
+      const modelName = model?.name || modelId;
+
+      try {
+        setLibraryItems((prev) => prev.filter((i) => i.model_id !== modelId));
+        await LibraryService.removeFromLibrary(user.id, modelId);
+        addToast(`Removed ${modelName} from your Library.`, 'info');
+        return { success: true };
+      } catch (err: any) {
+        console.error('Failed to remove from library:', err);
+        addToast('Could not remove model from your library. Please try again.', 'error');
+        refreshLibrary();
+        return { success: false, error: err?.message };
+      }
+    },
+    [user, models, addToast, refreshLibrary]
+  );
+
+  const updateLibraryItemStatus = useCallback(
+    async (
+      modelId: string,
+      updates: {
+        installed?: boolean;
+        installed_version?: string | null;
+        deployment_status?: DeploymentStatus;
+      }
+    ): Promise<{ success: boolean; error?: string }> => {
+      if (!user) return { success: false, error: 'auth_required' };
+
+      try {
+        setLibraryItems((prev) =>
+          prev.map((i) => (i.model_id === modelId ? { ...i, ...updates } : i))
+        );
+        await LibraryService.updateLibraryItemStatus(user.id, modelId, updates);
+        return { success: true };
+      } catch (err: any) {
+        console.error('Failed to update library item status:', err);
+        return { success: false, error: err?.message };
+      }
+    },
+    [user]
+  );
+
   // Active APIs (My APIs)
   const [activeApis, setActiveApis] = useState<ActiveApi[]>(() => {
     const saved = localStorage.getItem('agora_active_apis');
@@ -296,22 +449,6 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       type: 'system'
     }
   ]);
-
-  // Toast dispatch helper
-  const addToast = (message: string, type: Toast['type'] = 'info') => {
-    const id = `toast-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    setToasts((prev) => [...prev, { id, message, type }]);
-  };
-
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
-
-  // Safe navigation setter
-  const setView = (view: ViewType) => {
-    setViewInternal(view);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
 
   // Helper to calculate monthly estimate
   const calculateEstimatedCost = (model: Model, tokens: number): number => {
@@ -467,6 +604,34 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       return [...existingFiltered, ...newActiveApis];
     });
 
+    // Automatically add all checked-out models to the user's Library
+    const targetUserId = user?.id || 'demo_user';
+    cart.forEach(async (cartItem) => {
+      try {
+        await LibraryService.addToLibrary(targetUserId, cartItem.modelId, models);
+      } catch (err) {
+        console.warn('Could not auto-add to library during checkout:', err);
+      }
+    });
+
+    // Immediately update local library items state
+    setLibraryItems((prev) => {
+      const existingModelIds = new Set(prev.map((i) => i.model_id));
+      const newlyAdded: LibraryItem[] = cart
+        .filter((item) => !existingModelIds.has(item.modelId))
+        .map((item) => ({
+          id: `lib-${Date.now()}-${item.modelId}`,
+          user_id: targetUserId,
+          model_id: item.modelId,
+          added_at: new Date().toISOString(),
+          installed: false,
+          installed_version: null,
+          deployment_status: 'not_deployed',
+          model: models.find((m) => m.id === item.modelId)
+        }));
+      return [...newlyAdded, ...prev];
+    });
+
     const result: CheckoutResult = {
       provisionedApis: newActiveApis,
       models: selectedCartModels,
@@ -479,7 +644,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setLastCheckoutResult(result);
     clearCart();
     setView('checkout-success');
-    addToast('API Access provisioned successfully! Demo endpoints are ready.', 'success');
+    addToast('Checkout complete! Models added to your Library and active APIs provisioned.', 'success');
 
     return result;
   };
@@ -608,6 +773,16 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         toasts,
         notifications,
         followedCreatorIds,
+
+        // User Library (Steam-Style Supabase Persistence)
+        libraryItems,
+        libraryModelIds,
+        libraryLoading,
+        isModelInLibrary,
+        addToLibrary,
+        removeFromLibrary,
+        updateLibraryItemStatus,
+        refreshLibrary,
 
         // Cart
         cart,
