@@ -34,7 +34,8 @@ export type ViewType =
   | 'workshop'
   | 'community'
   | 'creator'
-  | 'wishlist';
+  | 'wishlist'
+  | 'launcher';
 
 export interface Toast {
   id: string;
@@ -242,12 +243,26 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [workshopItems, setWorkshopItems] = useState<WorkshopItem[]>(mockWorkshopItems);
   const [appMode, setAppModeState] = useState<'launcher' | 'web'>(() => {
     try {
+      const pathname = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+      if (pathname === '/launcher' || pathname === '/launcher/' || hash === '#launcher' || hash === '#/launcher') {
+        return 'web';
+      }
       const saved = localStorage.getItem('agora_app_mode');
       if (saved === 'web' || saved === 'launcher') return saved;
     } catch {}
     return 'launcher';
   });
-  const [currentView, setViewInternal] = useState<ViewType>('store');
+  const [currentView, setViewInternal] = useState<ViewType>(() => {
+    try {
+      const pathname = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+      if (pathname === '/launcher' || pathname === '/launcher/' || hash === '#launcher' || hash === '#/launcher') {
+        return 'launcher';
+      }
+    } catch {}
+    return 'store';
+  });
 
   const setAppMode = useCallback((mode: 'launcher' | 'web') => {
     setAppModeState(mode);
@@ -343,6 +358,32 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const setView = useCallback((view: ViewType) => {
     setViewInternal(view);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    try {
+      if (view === 'launcher') {
+        if (window.location.pathname !== '/launcher') {
+          window.history.pushState({ view: 'launcher' }, '', '/launcher');
+        }
+      } else if (window.location.pathname === '/launcher') {
+        window.history.pushState({ view }, '', '/');
+      }
+    } catch {}
+  }, []);
+
+  // Listen to browser forward/back buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      try {
+        const pathname = window.location.pathname.toLowerCase();
+        const hash = window.location.hash.toLowerCase();
+        if (pathname === '/launcher' || pathname === '/launcher/' || hash === '#launcher' || hash === '#/launcher') {
+          setViewInternal('launcher');
+        } else if (pathname === '/' || pathname === '') {
+          setViewInternal('store');
+        }
+      } catch {}
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   // User Library State (Steam-Style Supabase Persistence)

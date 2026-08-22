@@ -17,7 +17,8 @@ import {
   Zap,
   ChevronDown,
   Box,
-  Monitor
+  Monitor,
+  Download
 } from 'lucide-react';
 import { UserProfileModal } from './UserProfileModal';
 
@@ -94,7 +95,8 @@ export const Navbar: React.FC = () => {
       icon: Server,
       badge: activeApisCount > 0 ? `${activeApisCount} Active` : undefined,
       badgeColor: 'bg-emerald-500'
-    }
+    },
+    { label: 'Launcher', view: 'launcher', icon: Download }
   ];
 
   const handleNavClick = (view: ViewType) => {
