@@ -19,6 +19,7 @@ import { awsConnectionService } from '../services/AwsConnectionService';
 import type { LibraryItem, DeploymentStatus } from '../types/library';
 import type { Deployment, DeploymentDraft } from '../types/deployment';
 import type { AwsConnection, VerifyAwsRoleResponse } from '../types/aws';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 
 export type ViewType =
   | 'store'
@@ -169,7 +170,7 @@ interface AppContextType {
   // Active API Access (My APIs)
   activeApis: ActiveApi[];
   lastCheckoutResult: CheckoutResult | null;
-  confirmApiAccessCheckout: (params: { orgName: string; rateTier: string; region: string }) => CheckoutResult;
+  confirmApiAccessCheckout: (params: { orgName: string; rateTier: string; region: string }) => Promise<CheckoutResult>;
   hasActiveApi: (modelId: string) => boolean;
   revokeApiAccess: (apiId: string) => void;
   regenerateApiKey: (apiId: string) => void;
@@ -349,13 +350,10 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [libraryLoading, setLibraryLoading] = useState<boolean>(false);
 
   const refreshLibrary = useCallback(async () => {
-    if (!user) {
-      setLibraryItems([]);
-      return;
-    }
+    const targetUserId = user ? user.id : 'demo_user';
     setLibraryLoading(true);
     try {
-      const items = await LibraryService.getUserLibrary(user.id, models);
+      const items = await LibraryService.getUserLibrary(targetUserId, models);
       setLibraryItems(items);
     } catch (e) {
       console.warn('Error refreshing user library:', e);
@@ -367,6 +365,31 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     refreshLibrary();
   }, [refreshLibrary]);
+
+  // Realtime Supabase library synchronization: instantly receive purchases & library updates
+  useEffect(() => {
+    if (!user || !isSupabaseConfigured) return;
+
+    const channel = supabase
+      .channel(`public:app_library:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'library',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          refreshLibrary();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, refreshLibrary]);
 
   const libraryModelIds = useMemo(() => {
     return new Set(libraryItems.map((item) => item.model_id));
@@ -840,11 +863,11 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   // 3. Demo Checkout & API Provisioning
-  const confirmApiAccessCheckout = (params: {
+  const confirmApiAccessCheckout = async (params: {
     orgName: string;
     rateTier: string;
     region: string;
-  }): CheckoutResult => {
+  }): Promise<CheckoutResult> => {
     const selectedCartModels = cart
       .map((item) => models.find((m) => m.id === item.modelId))
       .filter(Boolean) as Model[];
@@ -882,33 +905,47 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       return [...existingFiltered, ...newActiveApis];
     });
 
-    // Automatically add all checked-out models to the user's Library
-    const targetUserId = user?.id || 'demo_user';
-    cart.forEach(async (cartItem) => {
-      try {
-        await LibraryService.addToLibrary(targetUserId, cartItem.modelId, models);
-      } catch (err) {
-        console.warn('Could not auto-add to library during checkout:', err);
-      }
-    });
-
-    // Immediately update local library items state
-    setLibraryItems((prev) => {
-      const existingModelIds = new Set(prev.map((i) => i.model_id));
-      const newlyAdded: LibraryItem[] = cart
-        .filter((item) => !existingModelIds.has(item.modelId))
-        .map((item) => ({
-          id: `lib-${Date.now()}-${item.modelId}`,
-          user_id: targetUserId,
-          model_id: item.modelId,
-          added_at: new Date().toISOString(),
-          installed: false,
-          installed_version: null,
-          deployment_status: 'not_deployed',
-          model: models.find((m) => m.id === item.modelId)
-        }));
-      return [...newlyAdded, ...prev];
-    });
+    // Automatically add all checked-out models to the user's Library in Supabase
+    if (user) {
+      await Promise.all(
+        cart.map(async (cartItem) => {
+          try {
+            await LibraryService.addToLibrary(user.id, cartItem.modelId, models);
+          } catch (err) {
+            console.warn('Could not auto-add to library during checkout:', err);
+          }
+        })
+      );
+      await refreshLibrary();
+    } else {
+      const targetUserId = 'demo_user';
+      await Promise.all(
+        cart.map(async (cartItem) => {
+          try {
+            await LibraryService.addToLibrary(targetUserId, cartItem.modelId, models);
+          } catch (err) {
+            console.warn('Could not auto-add to local library during demo checkout:', err);
+          }
+        })
+      );
+      // Immediately update local library items state for demo
+      setLibraryItems((prev) => {
+        const existingModelIds = new Set(prev.map((i) => i.model_id));
+        const newlyAdded: LibraryItem[] = cart
+          .filter((item) => !existingModelIds.has(item.modelId))
+          .map((item) => ({
+            id: `lib-${Date.now()}-${item.modelId}`,
+            user_id: targetUserId,
+            model_id: item.modelId,
+            added_at: new Date().toISOString(),
+            installed: false,
+            installed_version: null,
+            deployment_status: 'not_deployed',
+            model: models.find((m) => m.id === item.modelId)
+          }));
+        return [...newlyAdded, ...prev];
+      });
+    }
 
     const result: CheckoutResult = {
       provisionedApis: newActiveApis,

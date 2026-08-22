@@ -35,7 +35,9 @@ export const LibraryService = {
   async getUserLibrary(userId: string, allModels: Model[] = []): Promise<LibraryItem[]> {
     if (!userId) return [];
 
-    if (isSupabaseConfigured) {
+    const localItems = getLocalLibraryItems(userId);
+
+    if (isSupabaseConfigured && userId !== 'demo_user') {
       try {
         const { data, error } = await supabase
           .from('library')
@@ -43,9 +45,9 @@ export const LibraryService = {
           .eq('user_id', userId)
           .order('added_at', { ascending: false });
 
-        if (!error && data) {
+        if (!error && data && data.length > 0) {
           // Attach model objects
-          return data.map((item: any) => {
+          const joined = data.map((item: any) => {
             const foundModel =
               allModels.find((m) => m.id === item.model_id) ||
               mockModels.find((m) => m.id === item.model_id);
@@ -63,18 +65,39 @@ export const LibraryService = {
               model: foundModel
             };
           });
+
+          // Sync to local cache
+          saveLocalLibraryItems(userId, joined);
+          return joined;
+        } else if (!error && data && data.length === 0) {
+          // Database returned empty, check if we have local items to preserve & sync
+          if (localItems.length > 0) {
+            localItems.forEach((li) => {
+              supabase.from('library').upsert({
+                user_id: userId,
+                model_id: li.model_id,
+                added_at: li.added_at || new Date().toISOString(),
+                installed: li.installed || false,
+                deployment_status: li.deployment_status || 'not_deployed'
+              }).then();
+            });
+            return localItems.map((item) => ({
+              ...item,
+              model: allModels.find((m) => m.id === item.model_id) || mockModels.find((m) => m.id === item.model_id)
+            }));
+          }
+          return [];
         }
 
         if (error) {
-          console.warn('Supabase library fetch notice (table may be freshly created):', error.message);
+          console.warn('Supabase library fetch notice (using local cache):', error.message);
         }
       } catch (err) {
-        console.warn('Exception querying Supabase library:', err);
+        console.warn('Exception querying Supabase library (using local cache):', err);
       }
     }
 
-    // Fallback to local storage persistence for this user
-    const localItems = getLocalLibraryItems(userId);
+    // Fallback to local storage persistence
     return localItems.map((item) => ({
       ...item,
       model: allModels.find((m) => m.id === item.model_id) || mockModels.find((m) => m.id === item.model_id)
@@ -90,9 +113,7 @@ export const LibraryService = {
     modelId: string,
     allModels: Model[] = []
   ): Promise<{ success: boolean; item?: LibraryItem; error?: string; alreadyInLibrary?: boolean }> {
-    if (!userId) {
-      return { success: false, error: 'You must be signed in to add models to your library.' };
-    }
+    const targetUserId = userId || 'demo_user';
 
     const foundModel =
       allModels.find((m) => m.id === modelId) ||
@@ -100,74 +121,70 @@ export const LibraryService = {
 
     const now = new Date().toISOString();
 
-    if (isSupabaseConfigured) {
-      try {
-        // Check if current user is logged in
-        const { data: authData } = await supabase.auth.getUser();
-        const currentAuthUser = authData?.user;
+    // 1. Always update local storage first so UI has zero latency and guaranteed persistence
+    const local = getLocalLibraryItems(targetUserId);
+    const existingIndex = local.findIndex((i) => i.model_id === modelId);
+    let newItem: LibraryItem;
 
-        // If authenticated with Supabase
-        if (currentAuthUser && currentAuthUser.id === userId) {
-          const { data, error } = await supabase
-            .from('library')
-            .insert({
-              user_id: currentAuthUser.id,
+    if (existingIndex >= 0) {
+      newItem = local[existingIndex];
+    } else {
+      newItem = {
+        id: `lib-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        user_id: targetUserId,
+        model_id: modelId,
+        added_at: now,
+        installed: false,
+        installed_version: null,
+        deployment_status: 'not_deployed',
+        model: foundModel
+      };
+      const updated = [newItem, ...local];
+      saveLocalLibraryItems(targetUserId, updated);
+    }
+
+    if (isSupabaseConfigured && targetUserId !== 'demo_user') {
+      try {
+        const { data, error } = await supabase
+          .from('library')
+          .upsert(
+            {
+              user_id: targetUserId,
               model_id: modelId,
               added_at: now,
               installed: false,
               installed_version: null,
               deployment_status: 'not_deployed'
-            })
-            .select()
-            .single();
+            },
+            { onConflict: 'user_id,model_id' }
+          )
+          .select()
+          .single();
 
-          if (error) {
-            // Postgres error code 23505 is unique violation
-            if (error.code === '23505' || error.message.includes('unique') || error.message.includes('duplicate')) {
-              return { success: true, alreadyInLibrary: true };
-            }
-            console.warn('Supabase insert library error:', error.message);
-            // If table doesn't exist yet or has schema difference, fallback gracefully
-          } else if (data) {
-            const newItem: LibraryItem = {
-              id: data.id,
-              user_id: data.user_id,
-              model_id: data.model_id,
-              added_at: data.added_at,
-              installed: Boolean(data.installed),
-              installed_version: data.installed_version,
-              deployment_status: data.deployment_status as DeploymentStatus,
-              model: foundModel
-            };
-            return { success: true, item: newItem };
+        if (error) {
+          // Postgres error code 23505 is unique violation
+          if (error.code === '23505' || error.message.includes('unique') || error.message.includes('duplicate')) {
+            return { success: true, alreadyInLibrary: true, item: newItem };
           }
+          console.warn('Supabase insert/upsert library warning (cached locally):', error.message);
+        } else if (data) {
+          newItem = {
+            id: data.id,
+            user_id: data.user_id,
+            model_id: data.model_id,
+            added_at: data.added_at,
+            installed: Boolean(data.installed),
+            installed_version: data.installed_version,
+            deployment_status: data.deployment_status as DeploymentStatus,
+            model: foundModel
+          };
         }
       } catch (err: any) {
-        console.warn('Supabase addToLibrary exception:', err);
+        console.warn('Supabase addToLibrary exception (cached locally):', err);
       }
     }
 
-    // Local storage fallback
-    const local = getLocalLibraryItems(userId);
-    const existingIndex = local.findIndex((i) => i.model_id === modelId);
-    if (existingIndex >= 0) {
-      return { success: true, alreadyInLibrary: true, item: local[existingIndex] };
-    }
-
-    const newItem: LibraryItem = {
-      id: `lib-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      user_id: userId,
-      model_id: modelId,
-      added_at: now,
-      installed: false,
-      installed_version: null,
-      deployment_status: 'not_deployed',
-      model: foundModel
-    };
-
-    const updated = [newItem, ...local];
-    saveLocalLibraryItems(userId, updated);
-    return { success: true, item: newItem };
+    return { success: true, item: newItem, alreadyInLibrary: existingIndex >= 0 };
   },
 
   /**
@@ -175,35 +192,28 @@ export const LibraryService = {
    * Only deletes the relationship row in `library`, does NOT delete the model from `models`.
    */
   async removeFromLibrary(userId: string, modelId: string): Promise<{ success: boolean; error?: string }> {
-    if (!userId) {
-      return { success: false, error: 'User authentication required' };
-    }
+    const targetUserId = userId || 'demo_user';
 
-    if (isSupabaseConfigured) {
+    // Update local storage
+    const local = getLocalLibraryItems(targetUserId);
+    const filtered = local.filter((i) => i.model_id !== modelId);
+    saveLocalLibraryItems(targetUserId, filtered);
+
+    if (isSupabaseConfigured && targetUserId !== 'demo_user') {
       try {
-        const { data: authData } = await supabase.auth.getUser();
-        const currentAuthUser = authData?.user;
+        const { error } = await supabase
+          .from('library')
+          .delete()
+          .eq('user_id', targetUserId)
+          .eq('model_id', modelId);
 
-        if (currentAuthUser && currentAuthUser.id === userId) {
-          const { error } = await supabase
-            .from('library')
-            .delete()
-            .eq('user_id', currentAuthUser.id)
-            .eq('model_id', modelId);
-
-          if (error) {
-            console.warn('Supabase removeFromLibrary error:', error.message);
-          }
+        if (error) {
+          console.warn('Supabase removeFromLibrary error:', error.message);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.warn('Supabase removeFromLibrary exception:', err);
       }
     }
-
-    // Update local storage
-    const local = getLocalLibraryItems(userId);
-    const filtered = local.filter((i) => i.model_id !== modelId);
-    saveLocalLibraryItems(userId, filtered);
 
     return { success: true };
   },
@@ -220,34 +230,10 @@ export const LibraryService = {
       deployment_status?: DeploymentStatus;
     }
   ): Promise<{ success: boolean; error?: string }> {
-    if (!userId) return { success: false, error: 'User authentication required' };
-
-    if (isSupabaseConfigured) {
-      try {
-        const { data: authData } = await supabase.auth.getUser();
-        const currentAuthUser = authData?.user;
-
-        if (currentAuthUser && currentAuthUser.id === userId) {
-          const { error } = await supabase
-            .from('library')
-            .update({
-              ...updates,
-              updated_at: new Date().toISOString()
-            })
-            .eq('user_id', currentAuthUser.id)
-            .eq('model_id', modelId);
-
-          if (error) {
-            console.warn('Supabase update status error:', error.message);
-          }
-        }
-      } catch (err) {
-        console.warn('Supabase update status exception:', err);
-      }
-    }
+    const targetUserId = userId || 'demo_user';
 
     // Update local storage
-    const local = getLocalLibraryItems(userId);
+    const local = getLocalLibraryItems(targetUserId);
     const updated = local.map((i) => {
       if (i.model_id === modelId) {
         return {
@@ -258,7 +244,26 @@ export const LibraryService = {
       }
       return i;
     });
-    saveLocalLibraryItems(userId, updated);
+    saveLocalLibraryItems(targetUserId, updated);
+
+    if (isSupabaseConfigured && targetUserId !== 'demo_user') {
+      try {
+        const { error } = await supabase
+          .from('library')
+          .update({
+            ...updates,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', targetUserId)
+          .eq('model_id', modelId);
+
+        if (error) {
+          console.warn('Supabase update status error:', error.message);
+        }
+      } catch (err: any) {
+        console.warn('Supabase update status exception:', err);
+      }
+    }
 
     return { success: true };
   },

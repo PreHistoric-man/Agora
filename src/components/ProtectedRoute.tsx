@@ -50,7 +50,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
               {description}
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full mb-4">
               <button
                 type="button"
                 onClick={() => openAuthModal('login', targetViewName)}
@@ -69,6 +69,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
                 Create Account
               </button>
             </div>
+
+            {targetViewName === 'library' && (
+              <p className="text-[11px] text-slate-500">
+                Sign in to sync your library across web and the Agora desktop launcher via cloud database.
+              </p>
+            )}
           </div>
         </div>
       </div>

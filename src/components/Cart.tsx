@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import type { CartItem } from '../context/AppContext';
 import { ModelLogo } from './ModelLogo';
 import {
@@ -14,7 +15,9 @@ import {
   Info,
   ExternalLink,
   ChevronRight,
-  Loader2
+  Loader2,
+  LogIn,
+  UserCheck
 } from 'lucide-react';
 
 export const Cart: React.FC = () => {
@@ -28,6 +31,7 @@ export const Cart: React.FC = () => {
     setView,
     setSelectedModelId
   } = useApp();
+  const { user, isAuthenticated, openAuthModal } = useAuth();
 
   // Checkout modal / step state
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'review'>('cart');
@@ -53,18 +57,23 @@ export const Cart: React.FC = () => {
 
   const handleConfirmCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!acceptedTerms) return;
+    if (!acceptedTerms || isProcessing) return;
 
     setIsProcessing(true);
-    // Simulate short network latency for hackathon realism
-    await new Promise((resolve) => setTimeout(resolve, 900));
-    setIsProcessing(false);
+    try {
+      // Simulate short network latency for realism
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
-    confirmApiAccessCheckout({
-      orgName: orgName.trim() || 'Demo Developer Studio',
-      rateTier,
-      region
-    });
+      await confirmApiAccessCheckout({
+        orgName: orgName.trim() || (user ? `${user.email?.split('@')[0]}'s Studio` : 'Demo Developer Studio'),
+        rateTier,
+        region
+      });
+    } catch (err) {
+      console.error('Checkout error:', err);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (cart.length === 0) {
