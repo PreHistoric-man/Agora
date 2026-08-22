@@ -263,14 +263,21 @@ export const PlaygroundView: React.FC = () => {
                   disabled={isGenerating}
                   className="bg-slate-900 border border-white/10 hover:border-cyan-500/40 text-white text-xs font-bold rounded-lg px-2.5 py-1 pr-7 focus:outline-none focus:border-cyan-500 appearance-none cursor-pointer"
                 >
-                  {installedModels.length === 0 ? (
+                  {installedModels.length === 0 && !activeModelTag ? (
                     <option value="">No models installed locally</option>
                   ) : (
-                    installedModels.map((m) => (
-                      <option key={m.name} value={m.name}>
-                        {m.name} ({m.sizeFormatted})
-                      </option>
-                    ))
+                    <>
+                      {activeModelTag && !installedModels.some((m) => m.name === activeModelTag || m.model === activeModelTag) && (
+                        <option value={activeModelTag}>
+                          {activeModelTag} (Active)
+                        </option>
+                      )}
+                      {installedModels.map((m) => (
+                        <option key={m.name} value={m.name}>
+                          {m.name} {m.sizeFormatted ? `(${m.sizeFormatted})` : ''}
+                        </option>
+                      ))}
+                    </>
                   )}
                 </select>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />

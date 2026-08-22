@@ -87,6 +87,8 @@ export interface Model {
   model_size?: string;
   modelSize?: string;
   runtime?: string;
+  runtime_model_id?: string;
+  runtimeModelId?: string;
   thumbnail_url?: string;
   thumbnailUrl?: string;
   banner_url?: string;
@@ -259,6 +261,213 @@ export const mockCreators: Creator[] = [
 // 20 High-Quality Mock AI Model APIs
 export const mockModels: Model[] = [
   {
+    id: 'qwen3',
+    name: 'Qwen3',
+    provider: 'Alibaba Cloud',
+    providerLogo: '⚡',
+    creatorId: 'c4',
+    description: 'Ultra-lightweight Qwen3 foundation model optimized for instant local inference and code generation.',
+    longDescription: 'Qwen3 0.6B is a breakthrough ultra-compact foundation model trained on high-density multilingual tokens, math reasoning, and code synthesis. It runs locally with near-zero latency on CPU and low-power hardware.',
+    category: 'Coding',
+    tags: ['CODING', 'FAST', 'OPEN WEIGHTS', 'LIGHTWEIGHT', 'LOCAL AI'],
+    overallScore: 95.5,
+    codingScore: 96.2,
+    reasoningScore: 93.4,
+    mathScore: 92.1,
+    visionScore: 0,
+    speedTokensPerSec: 140,
+    latencyMs: 12,
+    contextWindow: '32K tokens',
+    contextWindowTokens: 32768,
+    parameters: '0.6B Dense',
+    inputPricePerMillion: 0.05,
+    outputPricePerMillion: 0.20,
+    cachedInputPricePerMillion: 0.02,
+    batchDiscountPercent: 50,
+    isOpenSource: true,
+    license: 'Apache 2.0',
+    accessMethods: ['Local Ollama', 'REST API', 'Python SDK', 'Streaming SSE'],
+    endpoint: 'http://localhost:11434/api/chat',
+    modelEndpointId: 'qwen3:0.6b',
+    runtime: 'ollama',
+    runtime_model_id: 'qwen3:0.6b',
+    runtimeModelId: 'qwen3:0.6b',
+    bestFor: 'Instant local inference, low-power embedded edge devices, rapid code completions, and lightweight text processing.',
+    capabilities: ['Local Ollama Execution', 'Code Synthesis', 'Structured JSON Output', 'Ultra-Low Latency'],
+    sampleCurl: `curl http://localhost:11434/api/chat \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "qwen3:0.6b",
+    "messages": [{"role": "user", "content": "Write a python fibonacci function."}],
+    "stream": true
+  }'`,
+    samplePython: `import requests
+response = requests.post("http://localhost:11434/api/chat", json={
+    "model": "qwen3:0.6b",
+    "messages": [{"role": "user", "content": "Hello Qwen3!"}]
+})
+print(response.json())`,
+    sampleNode: `fetch("http://localhost:11434/api/chat", {
+  method: "POST",
+  body: JSON.stringify({ model: "qwen3:0.6b", messages: [{ role: "user", content: "Hello!" }] })
+});`,
+    hardwareRequirements: {
+      gpu: 'CPU / Any integrated GPU',
+      vram: '1 GB',
+      ram: '2 GB',
+      storage: '1.2 GB'
+    },
+    alternatives: ['llama-3-2', 'gemma3', 'deepseek-r1'],
+    rating: 4.9,
+    reviewCount: 1840,
+    apiCallsCount: 12000000,
+    version: 'v3.0.0',
+    releaseDate: '2025-02-10',
+    updatedDate: '2026-02-20',
+    artwork: 'from-amber-600 via-orange-700 to-slate-950',
+    screenshots: [
+      'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&auto=format&fit=crop&q=80'
+    ],
+    trustScore: 99,
+    trustBreakdown: { performance: 98, community: 99, documentation: 98, reliability: 99, creator: 99 },
+    benchmarks: [
+      { name: 'HumanEval (Code)', score: 76.5 },
+      { name: 'GSM8K (Math)', score: 78.2 }
+    ],
+    wishlisted: false
+  },
+  {
+    id: 'llama-3-2',
+    name: 'Llama 3.2',
+    provider: 'Meta',
+    providerLogo: '🦙',
+    creatorId: 'c5',
+    description: 'Meta compact edge powerhouse with multimodal understanding and strong multilingual instruction following.',
+    longDescription: 'Llama 3.2 3B is engineered for state-of-the-art on-device reasoning and conversational depth. Optimized with group query attention and distilled knowledge from larger Llama checkpoints.',
+    category: 'Reasoning',
+    tags: ['REASONING', 'EDGE AI', 'OPEN WEIGHTS', 'FAST', 'LOCAL AI'],
+    overallScore: 94.2,
+    codingScore: 91.0,
+    reasoningScore: 93.5,
+    mathScore: 90.2,
+    visionScore: 0,
+    speedTokensPerSec: 110,
+    latencyMs: 18,
+    contextWindow: '128K tokens',
+    contextWindowTokens: 128000,
+    parameters: '3B Dense',
+    inputPricePerMillion: 0.10,
+    outputPricePerMillion: 0.40,
+    cachedInputPricePerMillion: 0.05,
+    batchDiscountPercent: 50,
+    isOpenSource: true,
+    license: 'Llama 3.2 Community',
+    accessMethods: ['Local Ollama', 'REST API', 'vLLM', 'Streaming SSE'],
+    endpoint: 'http://localhost:11434/api/chat',
+    modelEndpointId: 'llama3.2',
+    runtime: 'ollama',
+    runtime_model_id: 'llama3.2',
+    runtimeModelId: 'llama3.2',
+    bestFor: 'General question answering, conversational companions, summarization, and local edge automation.',
+    capabilities: ['Local Ollama Execution', 'Fast Conversational AI', 'Instruction Following'],
+    sampleCurl: `curl http://localhost:11434/api/chat -d '{"model":"llama3.2","messages":[{"role":"user","content":"Hi"}]}'`,
+    samplePython: `# Python Ollama SDK
+import ollama
+response = ollama.chat(model='llama3.2', messages=[{'role': 'user', 'content': 'Explain quantum computing'}])
+print(response['message']['content'])`,
+    sampleNode: `// Node fetch
+const res = await fetch("http://localhost:11434/api/chat", { method: "POST", body: JSON.stringify({ model: "llama3.2" }) });`,
+    hardwareRequirements: {
+      gpu: 'Apple Silicon / RTX 3060+',
+      vram: '3 GB',
+      ram: '8 GB',
+      storage: '4 GB'
+    },
+    alternatives: ['qwen3', 'gemma3', 'deepseek-r1'],
+    rating: 4.8,
+    reviewCount: 3200,
+    apiCallsCount: 24000000,
+    version: 'v3.2.0',
+    releaseDate: '2024-09-25',
+    updatedDate: '2026-01-10',
+    artwork: 'from-blue-700 via-indigo-800 to-slate-950',
+    screenshots: [
+      'https://images.unsplash.com/photo-1544256718-3bcf237f3974?w=800&auto=format&fit=crop&q=80'
+    ],
+    trustScore: 98,
+    trustBreakdown: { performance: 95, community: 99, documentation: 97, reliability: 98, creator: 99 },
+    benchmarks: [
+      { name: 'MMLU', score: 63.4 },
+      { name: 'GSM8K', score: 77.7 }
+    ],
+    wishlisted: false
+  },
+  {
+    id: 'gemma3',
+    name: 'Gemma 3',
+    provider: 'Google',
+    providerLogo: '✨',
+    creatorId: 'c6',
+    description: 'Google next-gen lightweight open model built with Gemini research for responsive text and reasoning.',
+    longDescription: 'Gemma 3 1B is Google latest lightweight, state-of-the-art open model family built from the same research and technology used to create Gemini models.',
+    category: 'Reasoning',
+    tags: ['REASONING', 'OPEN WEIGHTS', 'GOOGLE RESEARCH', 'LOCAL AI'],
+    overallScore: 94.0,
+    codingScore: 92.5,
+    reasoningScore: 94.1,
+    mathScore: 91.0,
+    visionScore: 0,
+    speedTokensPerSec: 125,
+    latencyMs: 15,
+    contextWindow: '32K tokens',
+    contextWindowTokens: 32768,
+    parameters: '1B Dense',
+    inputPricePerMillion: 0.08,
+    outputPricePerMillion: 0.30,
+    cachedInputPricePerMillion: 0.04,
+    batchDiscountPercent: 50,
+    isOpenSource: true,
+    license: 'Gemma Terms of Use',
+    accessMethods: ['Local Ollama', 'REST API', 'Hugging Face'],
+    endpoint: 'http://localhost:11434/api/chat',
+    modelEndpointId: 'gemma3:1b',
+    runtime: 'ollama',
+    runtime_model_id: 'gemma3:1b',
+    runtimeModelId: 'gemma3:1b',
+    bestFor: 'Responsive text generation, classification, and summarization.',
+    capabilities: ['Local Ollama Execution', 'Gemini Architecture', 'Fast Generation'],
+    sampleCurl: `curl http://localhost:11434/api/chat -d '{"model":"gemma3:1b","messages":[{"role":"user","content":"Hi"}]}'`,
+    samplePython: `import ollama
+print(ollama.chat(model='gemma3:1b', messages=[{'role': 'user', 'content': 'Hello'}]))`,
+    sampleNode: `// Ollama JS client
+import ollama from 'ollama';
+const response = await ollama.chat({ model: 'gemma3:1b', messages: [{ role: 'user', content: 'Hi' }] });`,
+    hardwareRequirements: {
+      gpu: 'CPU / Integrated GPU',
+      vram: '2 GB',
+      ram: '4 GB',
+      storage: '2.5 GB'
+    },
+    alternatives: ['qwen3', 'llama-3-2'],
+    rating: 4.8,
+    reviewCount: 1650,
+    apiCallsCount: 14000000,
+    version: 'v3.0.0',
+    releaseDate: '2025-02-15',
+    updatedDate: '2026-02-15',
+    artwork: 'from-emerald-700 via-teal-800 to-slate-950',
+    screenshots: [
+      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80'
+    ],
+    trustScore: 98,
+    trustBreakdown: { performance: 96, community: 97, documentation: 98, reliability: 98, creator: 99 },
+    benchmarks: [
+      { name: 'MMLU', score: 62.1 },
+      { name: 'MATH', score: 71.3 }
+    ],
+    wishlisted: false
+  },
+  {
     id: 'deepseek-r1',
     name: 'DeepSeek-R1',
     provider: 'DeepSeek',
@@ -267,7 +476,7 @@ export const mockModels: Model[] = [
     description: 'SOTA open-weights reasoning model with chain-of-thought verification and competitive math performance.',
     longDescription: 'DeepSeek-R1 achieves state-of-the-art reasoning, math, and coding performance comparable to leading closed models. Leveraging pure reinforcement learning with multi-stage cold start data, R1 provides transparent step-by-step thinking traces and cost-effective inference.',
     category: 'Reasoning',
-    tags: ['REASONING', 'OPEN WEIGHTS', 'CHAIN OF THOUGHT', 'CHEAP TOKENS', 'MATH'],
+    tags: ['REASONING', 'OPEN WEIGHTS', 'CHAIN OF THOUGHT', 'CHEAP TOKENS', 'MATH', 'LOCAL AI'],
     overallScore: 98.2,
     codingScore: 96.5,
     reasoningScore: 98.8,
@@ -277,16 +486,19 @@ export const mockModels: Model[] = [
     latencyMs: 38,
     contextWindow: '128K tokens',
     contextWindowTokens: 128000,
-    parameters: '671B MoE (37B active)',
+    parameters: '8B Distill / 671B MoE',
     inputPricePerMillion: 0.14,
     outputPricePerMillion: 0.55,
     cachedInputPricePerMillion: 0.07,
     batchDiscountPercent: 50,
     isOpenSource: true,
     license: 'MIT License (Fully Open)',
-    accessMethods: ['REST API', 'Streaming SSE', 'Python SDK', 'TypeScript SDK', 'OpenAI-Compatible'],
+    accessMethods: ['REST API', 'Local Ollama', 'Streaming SSE', 'Python SDK'],
     endpoint: 'https://api.modalhub.ai/v1/chat/completions',
-    modelEndpointId: 'deepseek-r1',
+    modelEndpointId: 'deepseek-r1:8b',
+    runtime: 'ollama',
+    runtime_model_id: 'deepseek-r1:8b',
+    runtimeModelId: 'deepseek-r1:8b',
     bestFor: 'Deep mathematical proofs, complex algorithmic debugging, scientific hypothesis generation, and multi-step logic analysis.',
     capabilities: ['Chain-of-Thought Reasoning', 'Structured JSON Mode', 'Function Calling', 'Markdown Streaming', 'Self-Verification'],
     sampleCurl: `curl https://api.modalhub.ai/v1/chat/completions \\

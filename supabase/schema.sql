@@ -288,3 +288,131 @@ CREATE TRIGGER handle_aws_connections_updated_at
   BEFORE UPDATE ON public.aws_connections
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
+-- ==========================================================
+-- 9. Models Table (Global AI Model Registry & Runtime Mapping)
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS public.models (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  provider_logo TEXT DEFAULT '⚡',
+  creator_id TEXT DEFAULT 'c1',
+  description TEXT NOT NULL,
+  long_description TEXT,
+  category TEXT NOT NULL DEFAULT 'Reasoning',
+  tags TEXT[] DEFAULT ARRAY['AI'],
+  overall_score NUMERIC DEFAULT 90,
+  coding_score NUMERIC DEFAULT 90,
+  reasoning_score NUMERIC DEFAULT 90,
+  math_score NUMERIC DEFAULT 90,
+  vision_score NUMERIC DEFAULT 0,
+  speed_tokens_per_sec NUMERIC DEFAULT 60,
+  latency_ms NUMERIC DEFAULT 400,
+  context_window TEXT DEFAULT '128K tokens',
+  context_window_tokens INTEGER DEFAULT 128000,
+  parameters TEXT DEFAULT 'Weights',
+  input_price_per_million NUMERIC DEFAULT 0.20,
+  output_price_per_million NUMERIC DEFAULT 0.80,
+  cached_input_price_per_million NUMERIC,
+  batch_discount_percent INTEGER DEFAULT 50,
+  is_open_source BOOLEAN DEFAULT true,
+  license TEXT DEFAULT 'Open Weights',
+  access_methods TEXT[] DEFAULT ARRAY['REST API', 'Local Ollama'],
+  endpoint TEXT,
+  model_endpoint_id TEXT,
+  runtime TEXT DEFAULT 'ollama',
+  runtime_model_id TEXT,
+  best_for TEXT,
+  rating NUMERIC DEFAULT 4.8,
+  reviews_count INTEGER DEFAULT 50,
+  created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- Enable RLS for models table
+ALTER TABLE public.models ENABLE ROW LEVEL SECURITY;
+
+-- Models are viewable by all users (authenticated and anonymous)
+CREATE POLICY "Models are viewable by everyone"
+  ON public.models
+  FOR SELECT
+  USING (true);
+
+-- Insert or update default runtime models
+INSERT INTO public.models (
+  id, name, provider, provider_logo, description, long_description,
+  category, tags, overall_score, speed_tokens_per_sec, latency_ms,
+  context_window, parameters, input_price_per_million, output_price_per_million,
+  is_open_source, license, access_methods, runtime, runtime_model_id, rating, reviews_count
+) VALUES
+(
+  'qwen3',
+  'Qwen3',
+  'Alibaba Cloud',
+  '⚡',
+  'Ultra-lightweight Qwen3 foundation model optimized for instant local inference and code generation.',
+  'Qwen3 0.6B is a breakthrough ultra-compact foundation model trained on high-density multilingual tokens, math reasoning, and code synthesis. It runs locally with near-zero latency on CPU and low-power hardware.',
+  'Coding',
+  ARRAY['Coding', 'Fast', 'Open Weights', 'Lightweight', 'Local AI'],
+  95.5, 140, 12, '32K tokens', '0.6B Dense', 0.05, 0.20,
+  true, 'Apache 2.0', ARRAY['Local Ollama', 'REST API', 'Python SDK'],
+  'ollama', 'qwen3:0.6b', 4.9, 1840
+),
+(
+  'llama-3-2',
+  'Llama 3.2',
+  'Meta',
+  '🦙',
+  'Meta compact edge powerhouse with multimodal understanding and strong multilingual instruction following.',
+  'Llama 3.2 3B is engineered for state-of-the-art on-device reasoning and conversational depth.',
+  'Reasoning',
+  ARRAY['Reasoning', 'Edge AI', 'Open Weights', 'Fast', 'Local AI'],
+  94.2, 110, 18, '128K tokens', '3B Dense', 0.10, 0.40,
+  true, 'Llama 3.2 Community', ARRAY['Local Ollama', 'REST API', 'vLLM'],
+  'ollama', 'llama3.2', 4.8, 3200
+),
+(
+  'gemma3',
+  'Gemma 3',
+  'Google',
+  '✨',
+  'Google next-gen lightweight open model built with Gemini research for responsive text and reasoning.',
+  'Gemma 3 1B is Google latest lightweight, state-of-the-art open model family built from the same research and technology used to create Gemini models.',
+  'Reasoning',
+  ARRAY['Reasoning', 'Open Weights', 'Google Research', 'Local AI'],
+  94.0, 125, 15, '32K tokens', '1B Dense', 0.08, 0.30,
+  true, 'Gemma Terms of Use', ARRAY['Local Ollama', 'REST API', 'Hugging Face'],
+  'ollama', 'gemma3:1b', 4.8, 1650
+),
+(
+  'deepseek-r1',
+  'DeepSeek-R1',
+  'DeepSeek',
+  '🐋',
+  'SOTA open-weights reasoning model with chain-of-thought verification and competitive math performance.',
+  'DeepSeek-R1 achieves state-of-the-art reasoning, math, and coding performance comparable to leading closed models.',
+  'Reasoning',
+  ARRAY['Reasoning', 'Math', 'Coding', 'Open Weights', 'Local AI'],
+  98.2, 68, 38, '128K tokens', '8B Distill / 671B MoE', 0.14, 0.55,
+  true, 'MIT License', ARRAY['Local Ollama', 'REST API', 'Python SDK'],
+  'ollama', 'deepseek-r1:8b', 4.9, 24500
+),
+(
+  'qwen-2-5-coder-7b',
+  'Qwen 2.5 Coder 7B',
+  'Alibaba Cloud',
+  '⚡',
+  'High-performance coding transformer optimized for IDE autocomplete and script generation.',
+  'Qwen 2.5 Coder 7B provides competitive coding capabilities surpassing many 33B models.',
+  'Coding',
+  ARRAY['Coding', 'Open Weights', 'Apache 2.0', 'Local AI'],
+  96.0, 90, 25, '128K tokens', '7.6B Dense', 0.12, 0.45,
+  true, 'Apache 2.0', ARRAY['Local Ollama', 'REST API', 'vLLM'],
+  'ollama', 'qwen2.5-coder:7b', 4.9, 1950
+)
+ON CONFLICT (id) DO UPDATE SET
+  runtime = EXCLUDED.runtime,
+  runtime_model_id = EXCLUDED.runtime_model_id,
+  updated_at = NOW();
+
+

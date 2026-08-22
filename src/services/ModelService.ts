@@ -120,7 +120,8 @@ export function normalizeSupabaseModel(raw: any, index: number = 0): Model {
   // Context & Parameters
   const parameters = raw.parameters || raw.params || raw.model_size || raw.modelSize || fallbackMock?.parameters || 'Dense Architecture';
   const modelSize = raw.model_size || raw.modelSize || parameters;
-  const runtime = raw.runtime || raw.engine || 'vLLM / Modal Inference';
+  const runtime = raw.runtime || raw.engine || (raw.runtime_model_id || fallbackMock?.runtime_model_id ? 'ollama' : 'vLLM / Modal Inference');
+  const runtimeModelId = raw.runtime_model_id || raw.runtimeModelId || fallbackMock?.runtime_model_id || fallbackMock?.runtimeModelId;
   const contextWindow = raw.context_window || raw.contextWindow || fallbackMock?.contextWindow || '128K tokens';
   const contextWindowTokens = Number(
     raw.context_window_tokens ?? raw.contextWindowTokens ?? fallbackMock?.contextWindowTokens ?? 128000
@@ -155,6 +156,8 @@ export function normalizeSupabaseModel(raw: any, index: number = 0): Model {
     model_size: modelSize,
     modelSize,
     runtime,
+    runtime_model_id: runtimeModelId,
+    runtimeModelId,
     inputPricePerMillion: isNaN(inputPrice) ? 0.50 : inputPrice,
     outputPricePerMillion: isNaN(outputPrice) ? 1.50 : outputPrice,
     cachedInputPricePerMillion: cachedPrice ? Number(cachedPrice) : undefined,

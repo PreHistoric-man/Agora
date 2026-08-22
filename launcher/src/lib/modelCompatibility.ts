@@ -79,6 +79,7 @@ const OLLAMA_MODEL_TAG_MAP: Record<
 
 /**
  * Determines whether a given Agora Model can be run locally via Ollama.
+ * Prioritizes the `runtime_model_id` field defined in the model schema/database.
  */
 export function resolveModelRuntime(model?: Model | null): ModelRuntimeCompatibility {
   if (!model) {
@@ -92,7 +93,35 @@ export function resolveModelRuntime(model?: Model | null): ModelRuntimeCompatibi
     };
   }
 
-  // Check explicit map first
+  // 1. Direct runtime_model_id from model database schema (Highest Priority)
+  const runtimeModelId = (model.runtime_model_id || model.runtimeModelId || '').trim();
+  if (runtimeModelId) {
+    return {
+      supported: true,
+      runtime: 'ollama',
+      ollamaTag: runtimeModelId,
+      recommendedTag: runtimeModelId,
+      availableTags: [runtimeModelId],
+      defaultVramRequirement: '4 GB',
+      defaultRamRequirement: '8 GB'
+    };
+  }
+
+  // 2. If runtime explicitly marked as ollama without specific tag
+  if (model.runtime?.toLowerCase() === 'ollama') {
+    const defaultTag = model.modelEndpointId || model.id;
+    return {
+      supported: true,
+      runtime: 'ollama',
+      ollamaTag: defaultTag,
+      recommendedTag: defaultTag,
+      availableTags: [defaultTag],
+      defaultVramRequirement: '6 GB',
+      defaultRamRequirement: '16 GB'
+    };
+  }
+
+  // 3. Check explicit map
   const mapped = OLLAMA_MODEL_TAG_MAP[model.id];
   if (mapped) {
     return {
@@ -106,7 +135,7 @@ export function resolveModelRuntime(model?: Model | null): ModelRuntimeCompatibi
     };
   }
 
-  // If model specifies open-source or open weights
+  // 4. If model specifies open-source or open weights
   if (model.isOpenSource || model.tags?.some((t) => t.toUpperCase().includes('OPEN WEIGHT') || t.toUpperCase().includes('OPEN-SOURCE'))) {
     // Generate clean tag slug
     const cleanTag = model.id
@@ -129,7 +158,7 @@ export function resolveModelRuntime(model?: Model | null): ModelRuntimeCompatibi
     };
   }
 
-  // Proprietary / Closed API models (e.g. OpenAI, Anthropic, Google hosted models)
+  // 5. Proprietary / Closed API models (e.g. OpenAI, Anthropic hosted models)
   return {
     supported: false,
     runtime: 'none',

@@ -25,6 +25,9 @@ export interface Model {
   accessMethods: string[];
   endpoint?: string;
   modelEndpointId?: string;
+  runtime?: 'ollama' | 'modal' | 'aws' | 'proprietary' | string;
+  runtime_model_id?: string;
+  runtimeModelId?: string;
   bestFor?: string;
   capabilities?: string[];
   sampleCurl?: string;
