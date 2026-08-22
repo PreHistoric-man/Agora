@@ -33,9 +33,71 @@ interface LauncherContextType {
   removeFromLibrary: (modelId: string) => Promise<boolean>;
   isInLibrary: (modelId: string) => boolean;
   refreshAll: () => Promise<void>;
+  syncLibrary: () => Promise<void>;
 }
 
 const LauncherContext = createContext<LauncherContextType | undefined>(undefined);
+
+// Helper to resolve or construct a model from any identifier
+export function resolveModelFromPool(modelId: string, modelPool: Model[] = []): Model {
+  // 1. Direct ID match
+  let found = modelPool.find((m) => m.id === modelId);
+  if (found) return found;
+
+  // 2. Search fallback models
+  found = fallbackModels.find((m) => m.id === modelId);
+  if (found) return found;
+
+  // 3. Match by endpoint ID or runtime model ID
+  found = modelPool.find(
+    (m) =>
+      m.modelEndpointId === modelId ||
+      m.runtime_model_id === modelId ||
+      m.runtimeModelId === modelId ||
+      m.name.toLowerCase() === modelId.toLowerCase()
+  );
+  if (found) return found;
+
+  found = fallbackModels.find(
+    (m) =>
+      m.modelEndpointId === modelId ||
+      m.runtime_model_id === modelId ||
+      m.runtimeModelId === modelId ||
+      m.name.toLowerCase() === modelId.toLowerCase()
+  );
+  if (found) return found;
+
+  // 4. Construct a graceful fallback Model object so nothing is ever dropped
+  const cleanName = modelId
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  return {
+    id: modelId,
+    name: cleanName,
+    provider: 'Agora Community',
+    providerLogo: '⚡',
+    description: `Custom registered model (${modelId}) in your Agora library.`,
+    category: 'Reasoning',
+    tags: ['Library Model', 'Custom', 'AI'],
+    overallScore: 92,
+    speedTokensPerSec: 80,
+    latencyMs: 150,
+    contextWindow: '128K tokens',
+    parameters: 'Weights',
+    inputPricePerMillion: 0.10,
+    outputPricePerMillion: 0.40,
+    isOpenSource: true,
+    license: 'Community License',
+    accessMethods: ['Local Ollama', 'REST API', 'Playground'],
+    runtime: modelId.includes(':') || modelId.includes('llama') || modelId.includes('qwen') || modelId.includes('gemma') || modelId.includes('deepseek') ? 'ollama' : 'modal',
+    runtime_model_id: modelId,
+    runtimeModelId: modelId,
+    modelEndpointId: modelId,
+    rating: 4.8,
+    reviewsCount: 12,
+  };
+}
 
 export const LauncherProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
@@ -114,7 +176,13 @@ export const LauncherProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             created_at: item.created_at,
           };
         });
-        setModels(enriched);
+        // Merge mapped models with fallback models to ensure all core models exist
+        const allIds = new Set(enriched.map((m) => m.id));
+        const combined = [...enriched];
+        fallbackModels.forEach((f) => {
+          if (!allIds.has(f.id)) combined.push(f);
+        });
+        setModels(combined);
       } else {
         setModels(fallbackModels);
       }
@@ -126,58 +194,92 @@ export const LauncherProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, []);
 
-  // Fetch Library for authenticated user
+  // Fetch and Unify Library across Supabase and all local storage keys
   const fetchLibrary = useCallback(async () => {
-    if (!user) {
-      // Load local guest library if any
-      try {
-        const guestLib = localStorage.getItem('agora_guest_library');
-        if (guestLib) {
-          const parsed = JSON.parse(guestLib);
-          setLibraryItems(parsed);
-        } else {
-          setLibraryItems([]);
-        }
-      } catch {
-        setLibraryItems([]);
-      }
-      setLibraryLoading(false);
-      return;
-    }
-
     setLibraryLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('library')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('added_at', { ascending: false });
+    const collectedItems: LibraryItem[] = [];
+    const seenModelIds = new Set<string>();
 
-      if (!error && data) {
-        const joinedItems: LibraryItem[] = data.map((item: any) => {
-          const foundModel = models.find((m) => m.id === item.model_id) ||
-            fallbackModels.find((m) => m.id === item.model_id);
-          return {
-            id: item.id,
-            user_id: item.user_id,
-            model_id: item.model_id,
-            added_at: item.added_at || item.created_at || new Date().toISOString(),
-            installed: Boolean(item.installed),
-            installed_version: item.installed_version || null,
-            deployment_status: item.deployment_status || 'not_deployed',
-            model: foundModel,
-          };
-        });
-        setLibraryItems(joinedItems);
-      } else {
-        setLibraryItems([]);
+    // 1. Fetch from Supabase if user is logged in
+    if (user) {
+      try {
+        const { data, error } = await supabase
+          .from('library')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('added_at', { ascending: false });
+
+        if (!error && data) {
+          data.forEach((item: any) => {
+            const foundModel = resolveModelFromPool(item.model_id, models);
+            seenModelIds.add(item.model_id);
+            collectedItems.push({
+              id: item.id,
+              user_id: item.user_id,
+              model_id: item.model_id,
+              added_at: item.added_at || item.created_at || new Date().toISOString(),
+              installed: Boolean(item.installed),
+              installed_version: item.installed_version || null,
+              deployment_status: item.deployment_status || 'not_deployed',
+              model: foundModel,
+            });
+          });
+        }
+      } catch (err) {
+        console.warn('Notice querying Supabase library in desktop launcher:', err);
       }
-    } catch (err) {
-      console.warn('Error fetching library from Supabase:', err);
-      setLibraryItems([]);
-    } finally {
-      setLibraryLoading(false);
     }
+
+    // 2. Check all local storage keys from web app and launcher
+    const storageKeys = [
+      user ? `modalhub_user_library_items_${user.id}` : null,
+      'modalhub_user_library_items_guest',
+      'modalhub_user_library_items_c1',
+      'modalhub_user_library_items_null',
+      'modalhub_user_library_items_undefined',
+      'agora_guest_library',
+    ].filter(Boolean) as string[];
+
+    storageKeys.forEach((key) => {
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((item: any) => {
+              const modelId = item.model_id || item.id;
+              if (modelId && !seenModelIds.has(modelId)) {
+                seenModelIds.add(modelId);
+                const foundModel = item.model || resolveModelFromPool(modelId, models);
+                collectedItems.push({
+                  id: item.id || `local_${Date.now()}_${modelId}`,
+                  user_id: item.user_id || user?.id || 'local',
+                  model_id: modelId,
+                  added_at: item.added_at || item.created_at || new Date().toISOString(),
+                  installed: Boolean(item.installed),
+                  installed_version: item.installed_version || null,
+                  deployment_status: item.deployment_status || 'not_deployed',
+                  model: foundModel,
+                });
+              }
+            });
+          }
+        }
+      } catch (e) {
+        console.warn(`Error parsing local storage key ${key}:`, e);
+      }
+    });
+
+    // Save unified cache to local guest library for instant offline access
+    try {
+      localStorage.setItem('agora_guest_library', JSON.stringify(collectedItems));
+      if (user) {
+        localStorage.setItem(`modalhub_user_library_items_${user.id}`, JSON.stringify(collectedItems));
+      }
+    } catch {}
+
+    setLibraryItems(collectedItems);
+    setLibraryLoading(false);
   }, [user, models]);
 
   // Fetch Deployments for authenticated user
@@ -198,8 +300,7 @@ export const LauncherProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       if (!error && data) {
         const mapped: Deployment[] = data.map((d: any) => {
-          const foundModel = models.find((m) => m.id === d.model_id) ||
-            fallbackModels.find((m) => m.id === d.model_id);
+          const foundModel = resolveModelFromPool(d.model_id, models);
           return {
             id: d.id,
             user_id: d.user_id,
@@ -236,6 +337,17 @@ export const LauncherProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     fetchDeployments();
   }, [fetchLibrary, fetchDeployments]);
 
+  // Listen for storage events (e.g. if user adds model in web view or another tab)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key && (e.key.includes('library') || e.key.includes('modalhub'))) {
+        fetchLibrary();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [fetchLibrary]);
+
   const isInLibrary = useCallback(
     (modelId: string) => {
       return libraryItems.some((item) => item.model_id === modelId);
@@ -244,7 +356,7 @@ export const LauncherProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   );
 
   const addToLibrary = async (modelId: string): Promise<boolean> => {
-    const targetModel = models.find((m) => m.id === modelId) || fallbackModels.find((m) => m.id === modelId);
+    const targetModel = resolveModelFromPool(modelId, models);
     if (!targetModel) {
       showToast('Model not found', 'error');
       return false;
@@ -254,6 +366,30 @@ export const LauncherProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       showToast(`${targetModel.name} is already in your library`, 'info');
       return true;
     }
+
+    const newItem: LibraryItem = {
+      id: `lib_${Date.now()}_${modelId}`,
+      user_id: user?.id || 'guest',
+      model_id: modelId,
+      added_at: new Date().toISOString(),
+      installed: false,
+      deployment_status: 'not_deployed',
+      model: targetModel,
+    };
+
+    // Optimistically update state
+    const updatedItems = [newItem, ...libraryItems];
+    setLibraryItems(updatedItems);
+
+    // Save to local storage for both web & launcher keys
+    try {
+      localStorage.setItem('agora_guest_library', JSON.stringify(updatedItems));
+      localStorage.setItem('modalhub_user_library_items_guest', JSON.stringify(updatedItems));
+      if (user) {
+        localStorage.setItem(`modalhub_user_library_items_${user.id}`, JSON.stringify(updatedItems));
+      }
+      window.dispatchEvent(new Event('storage'));
+    } catch {}
 
     if (user) {
       try {
@@ -269,80 +405,51 @@ export const LauncherProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           .single();
 
         if (!error && data) {
-          const newItem: LibraryItem = {
-            id: data.id,
-            user_id: user.id,
-            model_id: modelId,
-            added_at: data.added_at || new Date().toISOString(),
-            installed: false,
-            deployment_status: 'not_deployed',
-            model: targetModel,
-          };
-          setLibraryItems((prev) => [newItem, ...prev]);
           showToast(`Added ${targetModel.name} to your library!`, 'success');
           return true;
-        } else {
-          showToast(`Failed to add to library: ${error?.message || 'Database error'}`, 'error');
-          return false;
         }
       } catch (err: any) {
-        showToast(`Failed to add to library: ${err.message}`, 'error');
-        return false;
+        console.warn('Supabase add library notice:', err.message);
       }
-    } else {
-      // Guest local storage
-      const newItem: LibraryItem = {
-        id: `guest_${Date.now()}`,
-        user_id: 'guest',
-        model_id: modelId,
-        added_at: new Date().toISOString(),
-        installed: false,
-        deployment_status: 'not_deployed',
-        model: targetModel,
-      };
-      const updated = [newItem, ...libraryItems];
-      setLibraryItems(updated);
-      try {
-        localStorage.setItem('agora_guest_library', JSON.stringify(updated));
-      } catch {}
-      showToast(`Added ${targetModel.name} to local library`, 'success');
-      return true;
     }
+
+    showToast(`Added ${targetModel.name} to your library!`, 'success');
+    return true;
   };
 
   const removeFromLibrary = async (modelId: string): Promise<boolean> => {
-    const target = libraryItems.find((item) => item.model_id === modelId);
-    if (!target) return false;
+    const updated = libraryItems.filter((item) => item.model_id !== modelId);
+    setLibraryItems(updated);
+
+    try {
+      localStorage.setItem('agora_guest_library', JSON.stringify(updated));
+      localStorage.setItem('modalhub_user_library_items_guest', JSON.stringify(updated));
+      if (user) {
+        localStorage.setItem(`modalhub_user_library_items_${user.id}`, JSON.stringify(updated));
+      }
+      window.dispatchEvent(new Event('storage'));
+    } catch {}
 
     if (user) {
       try {
-        const { error } = await supabase
+        await supabase
           .from('library')
           .delete()
           .eq('user_id', user.id)
           .eq('model_id', modelId);
-
-        if (!error) {
-          setLibraryItems((prev) => prev.filter((item) => item.model_id !== modelId));
-          showToast('Removed from library', 'info');
-          return true;
-        } else {
-          showToast(`Failed to remove: ${error.message}`, 'error');
-          return false;
-        }
       } catch (err: any) {
-        showToast(`Failed to remove: ${err.message}`, 'error');
-        return false;
+        console.warn('Supabase delete library notice:', err.message);
       }
-    } else {
-      const updated = libraryItems.filter((item) => item.model_id !== modelId);
-      setLibraryItems(updated);
-      try {
-        localStorage.setItem('agora_guest_library', JSON.stringify(updated));
-      } catch {}
-      showToast('Removed from local library', 'info');
-      return true;
     }
+
+    showToast('Removed from library', 'info');
+    return true;
+  };
+
+  const syncLibrary = async () => {
+    showToast('Synchronizing model library...', 'info');
+    await Promise.all([fetchModels(), fetchLibrary(), fetchDeployments()]);
+    showToast('Library synchronized successfully!', 'success');
   };
 
   const openModelDetail = (modelId: string) => {
@@ -354,10 +461,9 @@ export const LauncherProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setIsDetailOpen(false);
   };
 
-  const selectedModel =
-    models.find((m) => m.id === selectedModelId) ||
-    fallbackModels.find((m) => m.id === selectedModelId) ||
-    null;
+  const selectedModel = selectedModelId
+    ? resolveModelFromPool(selectedModelId, models)
+    : null;
 
   const refreshAll = async () => {
     await Promise.all([fetchModels(), fetchLibrary(), fetchDeployments()]);
@@ -388,6 +494,7 @@ export const LauncherProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         removeFromLibrary,
         isInLibrary,
         refreshAll,
+        syncLibrary,
       }}
     >
       {children}

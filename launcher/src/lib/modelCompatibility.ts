@@ -2,13 +2,29 @@ import type { Model } from '../types';
 
 export interface ModelRuntimeCompatibility {
   supported: boolean;
-  runtime: 'ollama' | 'none';
+  runtime: 'ollama' | 'modal' | 'hosted' | 'none';
   ollamaTag: string;
   recommendedTag: string;
   availableTags: string[];
   reason?: string;
   defaultVramRequirement?: string;
   defaultRamRequirement?: string;
+}
+
+// Helper to test if a model is deployed on Modal Serverless
+export function isModalModel(model?: Model | null): boolean {
+  if (!model) return false;
+  const runtime = (model.runtime || '').toLowerCase();
+  const provider = (model.provider || '').toLowerCase();
+  const endpoint = (model.endpoint || '').toLowerCase();
+  const tags = (model.tags || []).map((t) => t.toLowerCase());
+  return (
+    runtime === 'modal' ||
+    provider.includes('modal') ||
+    endpoint.includes('modal.run') ||
+    tags.includes('modal') ||
+    tags.includes('serverless')
+  );
 }
 
 // Known mappings for Agora models to Ollama model tags
@@ -158,14 +174,26 @@ export function resolveModelRuntime(model?: Model | null): ModelRuntimeCompatibi
     };
   }
 
-  // 5. Proprietary / Closed API models (e.g. OpenAI, Anthropic hosted models)
+  // 5. Check if it is a Modal Serverless Model
+  if (isModalModel(model)) {
+    return {
+      supported: false,
+      runtime: 'modal',
+      ollamaTag: '',
+      recommendedTag: '',
+      availableTags: [],
+      reason: 'This model is hosted on Modal Serverless infrastructure. Run in Cloud Playground or call via REST / Python API.'
+    };
+  }
+
+  // 6. Proprietary / Closed API models (e.g. OpenAI, Anthropic hosted models)
   return {
     supported: false,
-    runtime: 'none',
+    runtime: 'hosted',
     ollamaTag: '',
     recommendedTag: '',
     availableTags: [],
-    reason: `This model cannot currently be run with the installed local runtime. (${model.provider} is a hosted cloud API service, not an open-weights model)`
+    reason: `This model runs as a hosted API service (${model.provider}).`
   };
 }
 

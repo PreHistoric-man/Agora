@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLauncher } from '../context/LauncherContext';
 import { useAuth } from '../context/AuthContext';
 import { useRuntime } from '../context/RuntimeContext';
-import { resolveModelRuntime } from '../lib/modelCompatibility';
+import { resolveModelRuntime, isModalModel } from '../lib/modelCompatibility';
 import { ModelLogo } from './ModelLogo';
 import {
   Layers,
@@ -22,6 +22,11 @@ import {
   Cpu,
   Check,
   AlertCircle,
+  RefreshCw,
+  Cloud,
+  Zap,
+  Plus,
+  Server,
 } from 'lucide-react';
 
 export const LibraryView: React.FC = () => {
@@ -30,9 +35,12 @@ export const LibraryView: React.FC = () => {
     libraryItems,
     libraryLoading,
     removeFromLibrary,
+    addToLibrary,
+    isInLibrary,
     openModelDetail,
     setActiveView,
     showToast,
+    syncLibrary,
   } = useLauncher();
 
   const {
@@ -56,6 +64,7 @@ export const LibraryView: React.FC = () => {
 
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [localSearch, setLocalSearch] = useState<string>('');
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
   const categories = ['All', 'Reasoning', 'Coding', 'Image', 'Vision', 'Speech', 'Agents'];
 
@@ -72,6 +81,23 @@ export const LibraryView: React.FC = () => {
     return matchesCategory && matchesSearch;
   });
 
+  // Find local Ollama models on user's machine that aren't yet in the Agora library
+  const unlinkedLocalModels = installedModels.filter((im) => {
+    const tagName = im.name.toLowerCase();
+    const baseName = tagName.split(':')[0];
+    return !libraryItems.some((libItem) => {
+      const m = libItem.model;
+      if (!m) return false;
+      const comp = resolveModelRuntime(m);
+      return (
+        comp.ollamaTag.toLowerCase() === tagName ||
+        comp.ollamaTag.toLowerCase().split(':')[0] === baseName ||
+        m.id.toLowerCase() === tagName ||
+        m.id.toLowerCase() === baseName
+      );
+    });
+  });
+
   const handleLaunchAndPlay = async (modelTag: string) => {
     setActiveModelTag(modelTag);
     if (!isModelRunning(modelTag)) {
@@ -83,6 +109,19 @@ export const LibraryView: React.FC = () => {
       }
     }
     setActiveView('playground');
+  };
+
+  const handleModalPlayground = (modelId: string) => {
+    setActiveModelTag(modelId);
+    showToast(`Opening ${modelId} in AI Playground`, 'info');
+    setActiveView('playground');
+  };
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    await syncLibrary();
+    await refreshRuntime();
+    setIsSyncing(false);
   };
 
   return (
@@ -97,11 +136,22 @@ export const LibraryView: React.FC = () => {
             </h1>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Browse registered models, download local open weights, and launch real-time inference on Ollama.
+            Browse registered models, launch local Ollama inference, and test Modal serverless endpoints.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center flex-wrap gap-2.5">
+          {/* Sync Button */}
+          <button
+            onClick={handleManualSync}
+            disabled={isSyncing || libraryLoading}
+            title="Sync library with Supabase and web app"
+            className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-white/10 text-slate-300 hover:text-white font-semibold text-xs transition-all flex items-center gap-1.5"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>{isSyncing ? 'Syncing...' : 'Sync'}</span>
+          </button>
+
           {/* Runtime Status Pill */}
           <div
             onClick={() => setActiveView('settings')}
@@ -152,6 +202,51 @@ export const LibraryView: React.FC = () => {
           >
             Sign In Now
           </button>
+        </div>
+      )}
+
+      {/* Discovered Local Hardware Models (Ollama) */}
+      {unlinkedLocalModels.length > 0 && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-cyan-950/40 via-slate-900 to-slate-900 border border-cyan-500/20 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Cpu className="w-4 h-4 text-cyan-400" />
+              <span className="text-xs font-bold text-slate-200">
+                Discovered on Local Hardware ({unlinkedLocalModels.length})
+              </span>
+            </div>
+            <span className="text-[10px] text-cyan-400 font-mono">Ready to launch with Ollama</span>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {unlinkedLocalModels.map((m) => (
+              <div
+                key={m.name}
+                className="flex items-center gap-2 bg-slate-950/80 border border-white/10 rounded-xl px-3 py-1.5"
+              >
+                <div className="min-w-0">
+                  <span className="text-xs font-bold text-white block truncate">{m.name}</span>
+                  {m.sizeFormatted && (
+                    <span className="text-[10px] text-slate-400 font-mono">{m.sizeFormatted}</span>
+                  )}
+                </div>
+                <button
+                  onClick={() => addToLibrary(m.name)}
+                  className="px-2 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-[10px] font-bold transition-colors flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Add</span>
+                </button>
+                <button
+                  onClick={() => handleLaunchAndPlay(m.name)}
+                  className="px-2 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[10px] font-bold transition-colors flex items-center gap-1"
+                >
+                  <Play className="w-3 h-3 fill-current" />
+                  <span>Launch</span>
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -206,18 +301,27 @@ export const LibraryView: React.FC = () => {
             </h3>
             <p className="text-xs text-slate-400">
               {libraryItems.length === 0
-                ? 'Discover frontier open-weights models in the Store to install and run locally.'
+                ? 'Discover models in the Store or synchronize with your Agora web account.'
                 : 'Try adjusting your search query or category filters.'}
             </p>
           </div>
           {libraryItems.length === 0 && (
-            <button
-              onClick={() => setActiveView('store')}
-              className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all shadow-md shadow-cyan-500/20 inline-flex items-center gap-2"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>Explore Model Store</span>
-            </button>
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                onClick={() => setActiveView('store')}
+                className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all shadow-md shadow-cyan-500/20 inline-flex items-center gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Explore Model Store</span>
+              </button>
+              <button
+                onClick={handleManualSync}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all border border-white/10 inline-flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4 text-cyan-400" />
+                <span>Sync Web Library</span>
+              </button>
+            </div>
           )}
         </div>
       ) : (
@@ -226,6 +330,7 @@ export const LibraryView: React.FC = () => {
             if (!model) return null;
 
             const runtimeComp = resolveModelRuntime(model);
+            const isModal = isModalModel(model) || runtimeComp.runtime === 'modal';
             const ollamaTag = runtimeComp.ollamaTag;
             const isInstalled = runtimeComp.supported && isModelInstalled(ollamaTag);
             const isRunning = runtimeComp.supported && isModelRunning(ollamaTag);
@@ -243,7 +348,11 @@ export const LibraryView: React.FC = () => {
               <div
                 key={id || model_id}
                 onClick={() => openModelDetail(model.id)}
-                className="group relative rounded-2xl bg-slate-900/80 border border-white/10 hover:border-cyan-500/40 p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-cyan-500/5 cursor-pointer flex flex-col justify-between"
+                className={`group relative rounded-2xl bg-slate-900/80 border p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl cursor-pointer flex flex-col justify-between ${
+                  isModal
+                    ? 'border-indigo-500/30 hover:border-indigo-400/60 hover:shadow-indigo-500/10'
+                    : 'border-white/10 hover:border-cyan-500/40 hover:shadow-cyan-500/5'
+                }`}
               >
                 <div>
                   {/* Top Badges */}
@@ -252,8 +361,13 @@ export const LibraryView: React.FC = () => {
                       {model.category}
                     </span>
 
-                    {/* Local Status Indicator */}
-                    {runtimeComp.supported ? (
+                    {/* Status Indicator */}
+                    {isModal ? (
+                      <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                        <Zap className="w-3 h-3 text-indigo-400" />
+                        Modal Serverless
+                      </span>
+                    ) : runtimeComp.supported ? (
                       isRunning ? (
                         <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -301,13 +415,18 @@ export const LibraryView: React.FC = () => {
                     <span className="px-1.5 py-0.5 rounded bg-slate-950 border border-white/5">
                       {model.parameters || 'Weights'}
                     </span>
-                    {runtimeComp.supported ? (
+                    {isModal ? (
+                      <span className="px-1.5 py-0.5 rounded bg-indigo-950/60 text-indigo-300 border border-indigo-500/20 flex items-center gap-1">
+                        <Cloud className="w-3 h-3" />
+                        Modal Endpoint
+                      </span>
+                    ) : runtimeComp.supported ? (
                       <span className="px-1.5 py-0.5 rounded bg-cyan-950/60 text-cyan-300 border border-cyan-500/20">
                         Ollama: {ollamaTag}
                       </span>
                     ) : (
                       <span className="px-1.5 py-0.5 rounded bg-slate-950 text-slate-500 border border-white/5">
-                        Cloud API Only
+                        Hosted API
                       </span>
                     )}
                     {localDetails?.sizeFormatted && (
@@ -383,7 +502,31 @@ export const LibraryView: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      {runtimeComp.supported ? (
+                      {isModal ? (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openModelDetail(model.id);
+                            }}
+                            className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors flex items-center gap-1"
+                            title="View API Details & Credentials"
+                          >
+                            <span>API</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleModalPlayground(model.id);
+                            }}
+                            className="px-3.5 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-bold transition-all shadow-md shadow-indigo-500/20 flex items-center gap-1.5"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>Playground</span>
+                          </button>
+                        </>
+                      ) : runtimeComp.supported ? (
                         isRunning ? (
                           <>
                             <button
@@ -455,16 +598,28 @@ export const LibraryView: React.FC = () => {
                           </button>
                         )
                       ) : (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openModelDetail(model.id);
-                          }}
-                          className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors flex items-center gap-1"
-                        >
-                          <span>View API</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </button>
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openModelDetail(model.id);
+                            }}
+                            className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors flex items-center gap-1"
+                          >
+                            <span>API</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleModalPlayground(model.id);
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 text-xs font-semibold transition-colors flex items-center gap-1"
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            <span>Playground</span>
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -477,3 +632,4 @@ export const LibraryView: React.FC = () => {
     </div>
   );
 };
+
