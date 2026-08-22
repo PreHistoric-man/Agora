@@ -260,7 +260,15 @@ export const Library: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={() => setView('launcher')}
+            className="px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-white/10 hover:border-cyan-500/40 font-display text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer"
+            title="Download or open ModalHub Desktop Launcher"
+          >
+            <HardDrive size={14} className="text-cyan-400" /> Desktop Launcher
+          </button>
+
           {libraryItems.length > 0 && (
             <button
               onClick={() => {

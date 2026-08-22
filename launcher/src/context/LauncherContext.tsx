@@ -337,10 +337,47 @@ export const LauncherProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     fetchDeployments();
   }, [fetchLibrary, fetchDeployments]);
 
+  // Realtime Supabase synchronization: instantly sync library & deployments from web
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`public:launcher_sync_${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'library',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchLibrary();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'deployments',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchDeployments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchLibrary, fetchDeployments]);
+
   // Listen for storage events (e.g. if user adds model in web view or another tab)
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key && (e.key.includes('library') || e.key.includes('modalhub'))) {
+      if (e.key && (e.key.includes('library') || e.key.includes('modalhub') || e.key.includes('agora'))) {
         fetchLibrary();
       }
     };
@@ -393,6 +430,17 @@ export const LauncherProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     if (user) {
       try {
+        const { data: existingRows } = await supabase
+          .from('library')
+          .select('id, user_id, model_id')
+          .eq('user_id', user.id)
+          .eq('model_id', modelId);
+
+        if (existingRows && existingRows.length > 0) {
+          showToast(`${targetModel.name} is in your library!`, 'info');
+          return true;
+        }
+
         const { data, error } = await supabase
           .from('library')
           .insert({
@@ -402,7 +450,7 @@ export const LauncherProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             deployment_status: 'not_deployed',
           })
           .select()
-          .single();
+          .maybeSingle();
 
         if (!error && data) {
           showToast(`Added ${targetModel.name} to your library!`, 'success');

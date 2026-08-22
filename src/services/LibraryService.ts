@@ -45,7 +45,7 @@ export const LibraryService = {
           .eq('user_id', userId)
           .order('added_at', { ascending: false });
 
-        if (!error && data && data.length > 0) {
+        if (!error && data && Array.isArray(data)) {
           // Attach model objects
           const joined = data.map((item: any) => {
             const foundModel =
@@ -69,24 +69,6 @@ export const LibraryService = {
           // Sync to local cache
           saveLocalLibraryItems(userId, joined);
           return joined;
-        } else if (!error && data && data.length === 0) {
-          // Database returned empty, check if we have local items to preserve & sync
-          if (localItems.length > 0) {
-            localItems.forEach((li) => {
-              supabase.from('library').upsert({
-                user_id: userId,
-                model_id: li.model_id,
-                added_at: li.added_at || new Date().toISOString(),
-                installed: li.installed || false,
-                deployment_status: li.deployment_status || 'not_deployed'
-              }).then();
-            });
-            return localItems.map((item) => ({
-              ...item,
-              model: allModels.find((m) => m.id === item.model_id) || mockModels.find((m) => m.id === item.model_id)
-            }));
-          }
-          return [];
         }
 
         if (error) {
@@ -145,37 +127,56 @@ export const LibraryService = {
 
     if (isSupabaseConfigured && targetUserId !== 'demo_user') {
       try {
-        const { data, error } = await supabase
+        // Check if existing record exists in database
+        const { data: existingRows } = await supabase
           .from('library')
-          .upsert(
-            {
-              user_id: targetUserId,
-              model_id: modelId,
-              added_at: now,
-              installed: false,
-              installed_version: null,
-              deployment_status: 'not_deployed'
-            },
-            { onConflict: 'user_id,model_id' }
-          )
-          .select()
-          .single();
+          .select('id, user_id, model_id, added_at, installed, installed_version, deployment_status')
+          .eq('user_id', targetUserId)
+          .eq('model_id', modelId);
 
-        if (error) {
-          // Postgres error code 23505 is unique violation
-          if (error.code === '23505' || error.message.includes('unique') || error.message.includes('duplicate')) {
+        if (existingRows && existingRows.length > 0) {
+          const existing = existingRows[0];
+          newItem = {
+            id: existing.id,
+            user_id: existing.user_id,
+            model_id: existing.model_id,
+            added_at: existing.added_at,
+            installed: Boolean(existing.installed),
+            installed_version: existing.installed_version,
+            deployment_status: (existing.deployment_status || 'not_deployed') as DeploymentStatus,
+            model: foundModel
+          };
+          return { success: true, item: newItem, alreadyInLibrary: true };
+        }
+
+        // Insert new record directly
+        const { data: insertedData, error: insertError } = await supabase
+          .from('library')
+          .insert({
+            user_id: targetUserId,
+            model_id: modelId,
+            added_at: now,
+            installed: false,
+            installed_version: null,
+            deployment_status: 'not_deployed'
+          })
+          .select()
+          .maybeSingle();
+
+        if (insertError) {
+          if (insertError.code === '23505' || insertError.message.includes('unique') || insertError.message.includes('duplicate')) {
             return { success: true, alreadyInLibrary: true, item: newItem };
           }
-          console.warn('Supabase insert/upsert library warning (cached locally):', error.message);
-        } else if (data) {
+          console.warn('Supabase insert library warning (cached locally):', insertError.message);
+        } else if (insertedData) {
           newItem = {
-            id: data.id,
-            user_id: data.user_id,
-            model_id: data.model_id,
-            added_at: data.added_at,
-            installed: Boolean(data.installed),
-            installed_version: data.installed_version,
-            deployment_status: data.deployment_status as DeploymentStatus,
+            id: insertedData.id,
+            user_id: insertedData.user_id,
+            model_id: insertedData.model_id,
+            added_at: insertedData.added_at,
+            installed: Boolean(insertedData.installed),
+            installed_version: insertedData.installed_version,
+            deployment_status: insertedData.deployment_status as DeploymentStatus,
             model: foundModel
           };
         }

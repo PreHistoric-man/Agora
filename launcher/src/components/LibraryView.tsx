@@ -190,17 +190,37 @@ export const LibraryView: React.FC = () => {
         </div>
       </div>
 
-      {/* Guest Notice */}
-      {!user && (
-        <div className="p-3.5 rounded-xl bg-slate-900 border border-white/10 flex items-center justify-between gap-4">
-          <div className="text-xs text-slate-300">
-            <span className="font-semibold text-cyan-300">Guest mode active:</span> Library items are saved locally on this machine. Sign in to synchronize across devices.
+      {/* Account & Website Sync Status Notice */}
+      {user ? (
+        <div className="p-3.5 rounded-xl bg-cyan-950/30 border border-cyan-500/30 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-xs text-slate-300">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span>
+              Connected to Web Account (<strong className="text-cyan-300">{user.email}</strong>): Models added on the website automatically sync to your desktop in real-time.
+            </span>
+          </div>
+          <button
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 hover:underline shrink-0 flex items-center gap-1"
+          >
+            <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>Sync Now</span>
+          </button>
+        </div>
+      ) : (
+        <div className="p-3.5 rounded-xl bg-amber-950/30 border border-amber-500/30 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-xs text-amber-200">
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              <strong className="text-white">Desktop not linked to web account:</strong> Sign in with the same email used on the ModalHub website to automatically sync your library models.
+            </span>
           </div>
           <button
             onClick={() => openAuthModal('signin')}
-            className="text-xs font-semibold text-cyan-400 hover:underline shrink-0"
+            className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-all shadow-sm shrink-0"
           >
-            Sign In Now
+            Sign In with Web Account
           </button>
         </div>
       )}
