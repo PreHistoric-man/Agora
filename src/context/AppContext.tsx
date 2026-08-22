@@ -243,15 +243,10 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [workshopItems, setWorkshopItems] = useState<WorkshopItem[]>(mockWorkshopItems);
   const [appMode, setAppModeState] = useState<'launcher' | 'web'>(() => {
     try {
-      const pathname = window.location.pathname.toLowerCase();
-      const hash = window.location.hash.toLowerCase();
-      if (pathname === '/launcher' || pathname === '/launcher/' || hash === '#launcher' || hash === '#/launcher') {
-        return 'web';
-      }
       const saved = localStorage.getItem('agora_app_mode');
-      if (saved === 'web' || saved === 'launcher') return saved;
+      if (saved === 'web') return 'web';
     } catch {}
-    return 'launcher';
+    return 'web';
   });
   const [currentView, setViewInternal] = useState<ViewType>(() => {
     try {

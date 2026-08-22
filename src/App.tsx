@@ -18,23 +18,10 @@ import { CreatorProfile } from './components/CreatorProfile';
 import { ToastStack, ModalsManager } from './components/ModalsAndToasts';
 import { AuthModal } from './components/AuthModal';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { AgoraLauncher } from './components/launcher/AgoraLauncher';
 import { LauncherDownloadPage } from './components/LauncherDownloadPage';
 
 const AppInner: React.FC = () => {
-  const { currentView, appMode, toggleAppMode } = useApp();
-
-  if (appMode === 'launcher' && currentView !== 'launcher') {
-    return (
-      <>
-        <AgoraLauncher onToggleWebMode={toggleAppMode} />
-        {/* Toast logs, modal overlay manager, and auth modal */}
-        <ToastStack />
-        <ModalsManager />
-        <AuthModal />
-      </>
-    );
-  }
+  const { currentView } = useApp();
 
   const renderActiveView = () => {
     switch (currentView) {
