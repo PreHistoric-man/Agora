@@ -37,19 +37,10 @@ export const LauncherDownloadPage: React.FC = () => {
     setIsDownloading(true);
     addToast('Starting ModalHub Launcher download (Windows 64-bit installer)...', 'info');
 
-    // Create a temporary anchor to trigger browser download of the configured installer URL
     try {
-      const link = document.createElement('a');
-      link.href = LAUNCHER_DOWNLOAD_URL;
-      link.setAttribute('download', 'ModalHub-Launcher-Setup.exe');
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      window.open(LAUNCHER_DOWNLOAD_URL, '_blank', 'noopener,noreferrer');
     } catch (e) {
-      console.warn('Direct download link trigger:', e);
-      window.open(LAUNCHER_DOWNLOAD_URL, '_blank');
+      console.warn('Release page link could not be opened:', e);
     }
 
     setTimeout(() => {
@@ -100,6 +91,14 @@ export const LauncherDownloadPage: React.FC = () => {
               <Download className={`w-5 h-5 ${isDownloading ? 'animate-bounce' : 'group-hover:translate-y-0.5 transition-transform'}`} />
               <span>{isDownloading ? 'Starting Download...' : 'Download ModalHub Launcher'}</span>
             </button>
+            <a
+              href={LAUNCHER_DOWNLOAD_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium text-cyan-300 underline decoration-cyan-400/50 underline-offset-4 hover:text-cyan-200 transition-colors"
+            >
+              Having trouble? Open the GitHub release page
+            </a>
           </div>
 
           {/* Secondary specs */}

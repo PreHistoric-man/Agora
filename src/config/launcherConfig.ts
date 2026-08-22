@@ -6,7 +6,7 @@
  * change LAUNCHER_DOWNLOAD_URL below.
  */
 
-export const LAUNCHER_DOWNLOAD_URL = 'https://github.com/modalhub/launcher/releases/latest/download/ModalHub-Launcher-Setup.exe';
+export const LAUNCHER_DOWNLOAD_URL = 'https://github.com/PreHistoric-man/Agora/releases/tag/Desktop-Application';
 
 export const LAUNCHER_VERSION = 'v1.4.2';
 export const LAUNCHER_RELEASE_DATE = 'February 2026';
