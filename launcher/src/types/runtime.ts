@@ -1,4 +1,4 @@
-export type RuntimeType = 'ollama' | 'none';
+export type RuntimeType = 'ollama' | 'demo' | 'none';
 
 export type OllamaServerState = 'online' | 'stopped' | 'unavailable' | 'checking';
 

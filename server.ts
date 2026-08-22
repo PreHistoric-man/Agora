@@ -7,6 +7,7 @@ import {
   stopAwsEc2Instance,
   terminateAwsEc2Instance
 } from './src/services/serverAwsEc2Service';
+import { handleAssistantChat } from './src/services/serverAssistantService';
 
 async function startServer() {
   const app = express();
@@ -19,9 +20,24 @@ async function startServer() {
   app.get('/api/health', (_req, res) => {
     res.json({
       status: 'ok',
-      service: 'modalhub-backend',
+      service: 'agora-backend',
       timestamp: new Date().toISOString()
     });
+  });
+
+  // AI-Powered Agora Assistant Chatbot endpoint
+  app.post('/api/assistant/chat', async (req, res) => {
+    try {
+      const { messages, userContext } = req.body || {};
+      const result = await handleAssistantChat({ messages, userContext });
+      return res.json(result);
+    } catch (err: any) {
+      console.error('[API /api/assistant/chat Error]:', err);
+      return res.status(500).json({
+        message: 'Agora Assistant encountered an unexpected server error. Please try again.',
+        suggestedModels: []
+      });
+    }
   });
 
   // Server-side AWS Cross-Account Role verification endpoint

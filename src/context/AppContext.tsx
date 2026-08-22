@@ -192,6 +192,11 @@ interface AppContextType {
   toggleSubscribeWorkshop: (itemId: string) => void;
   addCommunityPost: (modelId: string, modelName: string, category: CommunityPost['category'], title: string, content: string) => void;
   markNotificationsRead: () => void;
+
+  // First Visit Onboarding Tutorial
+  isOnboardingOpen: boolean;
+  openOnboarding: () => void;
+  closeOnboarding: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -281,6 +286,27 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [followedCreatorIds, setFollowedCreatorIds] = useState<string[]>(['c2', 'c3']);
+
+  // Onboarding modal state (first visit check from localStorage)
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
+    try {
+      const completed = localStorage.getItem('agora_onboarding_completed');
+      return !completed || completed !== 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const openOnboarding = useCallback(() => {
+    setIsOnboardingOpen(true);
+  }, []);
+
+  const closeOnboarding = useCallback(() => {
+    try {
+      localStorage.setItem('agora_onboarding_completed', 'true');
+    } catch {}
+    setIsOnboardingOpen(false);
+  }, []);
 
   // Fetch real AI models from Supabase `models` table
   const refreshModels = useCallback(async () => {
@@ -1197,7 +1223,12 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         toggleFollowCreator,
         toggleSubscribeWorkshop,
         addCommunityPost,
-        markNotificationsRead
+        markNotificationsRead,
+
+        // Onboarding Tutorial
+        isOnboardingOpen,
+        openOnboarding,
+        closeOnboarding
       }}
     >
       {children}

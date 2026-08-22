@@ -8,11 +8,12 @@ import {
   Scale,
   ArrowRight,
   Coins,
-  Server
+  Server,
+  HelpCircle
 } from 'lucide-react';
 
 export const StoreHome: React.FC = () => {
-  const { models, modelsLoading, setView, setSelectedModelId } = useApp();
+  const { models, modelsLoading, setView, setSelectedModelId, openOnboarding } = useApp();
 
   // Highlighted Top Models from database (filter featured & trending)
   const featuredModels = useMemo(() => {
@@ -92,6 +93,14 @@ export const StoreHome: React.FC = () => {
             >
               <Scale size={15} className="text-indigo-400" />
               Compare Models Side-by-Side
+            </button>
+
+            <button
+              onClick={openOnboarding}
+              className="px-5 py-3.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-display text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
+            >
+              <HelpCircle size={15} className="text-cyan-400" />
+              How Agora Works
             </button>
           </div>
 

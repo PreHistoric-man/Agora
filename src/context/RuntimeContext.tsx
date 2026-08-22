@@ -1,18 +1,19 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { TauriService } from '../services/TauriService';
+import { demoRuntimeManager } from '../services/DemoRuntimeManager';
 import type {
   RuntimeStatus,
   LocalModelInfo,
   LocalRunningModel,
   ModelLocalState,
-  PullProgressUpdate
+  PullProgressUpdate,
 } from '../types/runtime';
 import { resolveModelRuntime } from '../utils/modelRuntimeResolver';
 import type { Model } from '../data/mockData';
 
 export interface ComputedModelRuntimeInfo {
   supported: boolean;
-  runtime: 'ollama' | 'none';
+  runtime: 'ollama' | 'demo' | 'none';
   ollamaTag: string;
   recommendedTag: string;
   availableTags: string[];
@@ -40,6 +41,7 @@ interface RuntimeContextType {
   startModel: (model: Model, customTag?: string) => Promise<{ success: boolean; message: string }>;
   stopModel: (model: Model, customTag?: string) => Promise<{ success: boolean; message: string }>;
   removeModel: (model: Model, customTag?: string) => Promise<{ success: boolean; message: string }>;
+  resetDemo: () => void;
   getModelRuntimeInfo: (model?: Model | null) => ComputedModelRuntimeInfo;
 }
 
@@ -56,34 +58,59 @@ export const RuntimeProvider: React.FC<{ children: ReactNode }> = ({ children })
   const refreshRuntime = useCallback(async (endpoint?: string): Promise<RuntimeStatus> => {
     setIsDetecting(true);
     try {
+      // 1. Fetch Demo models (always accessible)
+      const [demoInstalled, demoRunning] = await Promise.all([
+        demoRuntimeManager.listInstalledModels(),
+        demoRuntimeManager.getRunningModels(),
+      ]);
+
+      // 2. Fetch Ollama models
       const status = await TauriService.checkOllama(endpoint);
       setRuntimeStatus(status);
 
       if (status.available) {
-        const [installed, running] = await Promise.all([
+        const [ollamaInstalled, ollamaRunning] = await Promise.all([
           TauriService.listOllamaModels(endpoint),
-          TauriService.getOllamaRunningModels(endpoint)
+          TauriService.getOllamaRunningModels(endpoint),
         ]);
-        setInstalledModels(installed);
-        setRunningModels(running);
+
+        const mergedInstalled = [...ollamaInstalled];
+        for (const dm of demoInstalled) {
+          if (!mergedInstalled.some((m) => m.model === dm.model || m.name === dm.name)) {
+            mergedInstalled.push(dm);
+          }
+        }
+
+        const mergedRunning = [...ollamaRunning];
+        for (const dr of demoRunning) {
+          if (!mergedRunning.some((r) => r.model === dr.model || r.name === dr.name)) {
+            mergedRunning.push(dr);
+          }
+        }
+
+        setInstalledModels(mergedInstalled);
+        setRunningModels(mergedRunning);
       } else {
-        setInstalledModels([]);
-        setRunningModels([]);
+        setInstalledModels(demoInstalled);
+        setRunningModels(demoRunning);
       }
       return status;
     } catch (err: any) {
+      const demoInstalled = await demoRuntimeManager.listInstalledModels();
+      const demoRunning = await demoRuntimeManager.getRunningModels();
+
       const fallback: RuntimeStatus = {
         runtime: 'ollama',
         available: false,
         endpoint: endpoint || 'http://127.0.0.1:11434',
         error: err.message || 'Connection failed',
-        models_count: 0,
-        running_count: 0,
-        lastChecked: Date.now()
+        models_count: demoInstalled.length,
+        running_count: demoRunning.length,
+        lastChecked: Date.now(),
       };
       setRuntimeStatus(fallback);
-      setInstalledModels([]);
-      setRunningModels([]);
+      setInstalledModels(demoInstalled);
+      setRunningModels(demoRunning);
       return fallback;
     } finally {
       setIsDetecting(false);
@@ -93,8 +120,6 @@ export const RuntimeProvider: React.FC<{ children: ReactNode }> = ({ children })
   // Initial detection & periodic background health check
   useEffect(() => {
     refreshRuntime();
-
-    // Periodic check every 15 seconds
     const interval = setInterval(() => {
       refreshRuntime();
     }, 15000);
@@ -116,18 +141,19 @@ export const RuntimeProvider: React.FC<{ children: ReactNode }> = ({ children })
           state: 'not_installed',
           installed: false,
           running: false,
-          isLoading: false
+          isLoading: false,
         };
       }
 
+      const isDemo = comp.runtime === 'demo' || model?.id === 'qwen3-demo';
       const tag = comp.ollamaTag.toLowerCase();
       const tagWithLatest = tag.includes(':') ? tag : `${tag}:latest`;
       const baseTag = tag.split(':')[0];
 
       // Check if installed
       const foundInst = installedModels.find((m) => {
-        const mn = m.name.toLowerCase();
-        const mm = m.model.toLowerCase();
+        const mn = (m.name || '').toLowerCase();
+        const mm = (m.model || '').toLowerCase();
         return (
           mn === tag ||
           mn === tagWithLatest ||
@@ -140,8 +166,8 @@ export const RuntimeProvider: React.FC<{ children: ReactNode }> = ({ children })
 
       // Check if running
       const foundRunning = runningModels.find((r) => {
-        const rn = r.name.toLowerCase();
-        const rm = r.model.toLowerCase();
+        const rn = (r.name || '').toLowerCase();
+        const rm = (r.model || '').toLowerCase();
         return (
           rn === tag ||
           rn === tagWithLatest ||
@@ -169,7 +195,7 @@ export const RuntimeProvider: React.FC<{ children: ReactNode }> = ({ children })
 
       return {
         supported: true,
-        runtime: 'ollama',
+        runtime: isDemo ? 'demo' : 'ollama',
         ollamaTag: comp.ollamaTag,
         recommendedTag: comp.recommendedTag,
         availableTags: comp.availableTags,
@@ -181,7 +207,7 @@ export const RuntimeProvider: React.FC<{ children: ReactNode }> = ({ children })
         sizeFormatted: foundInst?.sizeFormatted,
         digest: foundInst?.digest,
         progress,
-        isLoading
+        isLoading,
       };
     },
     [installedModels, runningModels, installingProgress, actionLoading]
@@ -198,18 +224,44 @@ export const RuntimeProvider: React.FC<{ children: ReactNode }> = ({ children })
 
       setInstallingProgress((prev) => ({
         ...prev,
-        [tagToUse]: { status: 'Preparing download...', percent: 0 }
+        [tagToUse]: { status: 'Preparing download...', percent: 0 },
       }));
 
+      // Demo flow
+      if (comp.runtime === 'demo' || model.id === 'qwen3-demo' || tagToUse.includes('demo')) {
+        try {
+          const success = await demoRuntimeManager.installModel(tagToUse, (prog) => {
+            setInstallingProgress((prev) => ({
+              ...prev,
+              [tagToUse]: prog,
+            }));
+          });
+          await refreshRuntime();
+          setInstallingProgress((prev) => {
+            const next = { ...prev };
+            delete next[tagToUse];
+            return next;
+          });
+          return { success, message: success ? 'Demo model installed' : 'Demo installation failed' };
+        } catch (err: any) {
+          setInstallingProgress((prev) => {
+            const next = { ...prev };
+            delete next[tagToUse];
+            return next;
+          });
+          return { success: false, message: err.message || 'Demo install error' };
+        }
+      }
+
+      // Ollama flow
       try {
         const result = await TauriService.pullOllamaModel(tagToUse, (progress) => {
           setInstallingProgress((prev) => ({
             ...prev,
-            [tagToUse]: progress
+            [tagToUse]: progress,
           }));
         });
 
-        // Refresh installed models
         await refreshRuntime();
 
         setInstallingProgress((prev) => {
@@ -232,6 +284,16 @@ export const RuntimeProvider: React.FC<{ children: ReactNode }> = ({ children })
   );
 
   const cancelInstall = useCallback((modelTag: string): boolean => {
+    if (modelTag.includes('demo')) {
+      demoRuntimeManager.cancelInstall(modelTag);
+      setInstallingProgress((prev) => {
+        const next = { ...prev };
+        delete next[modelTag];
+        return next;
+      });
+      return true;
+    }
+
     const cancelled = TauriService.cancelModelInstall(modelTag);
     if (cancelled) {
       setInstallingProgress((prev) => {
@@ -250,6 +312,12 @@ export const RuntimeProvider: React.FC<{ children: ReactNode }> = ({ children })
 
       setActionLoading((prev) => ({ ...prev, [tagToUse]: true }));
       try {
+        if (comp.runtime === 'demo' || model.id === 'qwen3-demo' || tagToUse.includes('demo')) {
+          const success = await demoRuntimeManager.startModel(tagToUse);
+          await refreshRuntime();
+          return { success, message: success ? 'Demo model started' : 'Failed to start demo model' };
+        }
+
         const result = await TauriService.runOllamaModel(tagToUse);
         await refreshRuntime();
         return result;
@@ -273,6 +341,12 @@ export const RuntimeProvider: React.FC<{ children: ReactNode }> = ({ children })
 
       setActionLoading((prev) => ({ ...prev, [tagToUse]: true }));
       try {
+        if (comp.runtime === 'demo' || model.id === 'qwen3-demo' || tagToUse.includes('demo')) {
+          const success = await demoRuntimeManager.stopModel(tagToUse);
+          await refreshRuntime();
+          return { success, message: success ? 'Demo model stopped' : 'Failed to stop demo model' };
+        }
+
         const result = await TauriService.stopOllamaModel(tagToUse);
         await refreshRuntime();
         return result;
@@ -296,6 +370,12 @@ export const RuntimeProvider: React.FC<{ children: ReactNode }> = ({ children })
 
       setActionLoading((prev) => ({ ...prev, [tagToUse]: true }));
       try {
+        if (comp.runtime === 'demo' || model.id === 'qwen3-demo' || tagToUse.includes('demo')) {
+          const success = await demoRuntimeManager.deleteModel(tagToUse);
+          await refreshRuntime();
+          return { success, message: success ? 'Demo model deleted' : 'Failed to delete demo model' };
+        }
+
         const result = await TauriService.removeOllamaModel(tagToUse);
         await refreshRuntime();
         return result;
@@ -312,6 +392,11 @@ export const RuntimeProvider: React.FC<{ children: ReactNode }> = ({ children })
     [refreshRuntime]
   );
 
+  const resetDemo = useCallback(() => {
+    demoRuntimeManager.resetDemo();
+    refreshRuntime();
+  }, [refreshRuntime]);
+
   return (
     <RuntimeContext.Provider
       value={{
@@ -327,7 +412,8 @@ export const RuntimeProvider: React.FC<{ children: ReactNode }> = ({ children })
         startModel,
         stopModel,
         removeModel,
-        getModelRuntimeInfo
+        resetDemo,
+        getModelRuntimeInfo,
       }}
     >
       {children}

@@ -27,6 +27,8 @@ import {
   Zap,
   Plus,
   Server,
+  RotateCcw,
+  Bot,
 } from 'lucide-react';
 
 export const LibraryView: React.FC = () => {
@@ -44,6 +46,8 @@ export const LibraryView: React.FC = () => {
   } = useLauncher();
 
   const {
+    runtimeMode,
+    setRuntimeMode,
     runtimeStatus,
     installedModels,
     runningModels,
@@ -56,6 +60,7 @@ export const LibraryView: React.FC = () => {
     startModel,
     stopModel,
     deleteModel,
+    resetDemo,
     startingTags,
     stoppingTags,
     setActiveModelTag,
@@ -81,30 +86,13 @@ export const LibraryView: React.FC = () => {
     return matchesCategory && matchesSearch;
   });
 
-  // Find local Ollama models on user's machine that aren't yet in the Agora library
-  const unlinkedLocalModels = installedModels.filter((im) => {
-    const tagName = im.name.toLowerCase();
-    const baseName = tagName.split(':')[0];
-    return !libraryItems.some((libItem) => {
-      const m = libItem.model;
-      if (!m) return false;
-      const comp = resolveModelRuntime(m);
-      return (
-        comp.ollamaTag.toLowerCase() === tagName ||
-        comp.ollamaTag.toLowerCase().split(':')[0] === baseName ||
-        m.id.toLowerCase() === tagName ||
-        m.id.toLowerCase() === baseName
-      );
-    });
-  });
-
   const handleLaunchAndPlay = async (modelTag: string) => {
     setActiveModelTag(modelTag);
     if (!isModelRunning(modelTag)) {
       showToast(`Loading model ${modelTag} into memory...`, 'info');
       const started = await startModel(modelTag);
       if (!started) {
-        showToast(`Failed to launch model ${modelTag}. Check Ollama server.`, 'error');
+        showToast(`Failed to launch model ${modelTag}. Check runtime status.`, 'error');
         return;
       }
     }
@@ -136,11 +124,24 @@ export const LibraryView: React.FC = () => {
             </h1>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Browse registered models, launch local Ollama inference, and test Modal serverless endpoints.
+            Manage your AI models, launch local inference, and test deterministic streaming or cloud endpoints.
           </p>
         </div>
 
         <div className="flex items-center flex-wrap gap-2.5">
+          {/* Reset Demo Button */}
+          <button
+            onClick={() => {
+              resetDemo();
+              showToast('Reset demo runtime state', 'info');
+            }}
+            title="Reset demo models back to not-installed state"
+            className="px-2.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-semibold transition-all flex items-center gap-1.5"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset Demo</span>
+          </button>
+
           {/* Sync Button */}
           <button
             onClick={handleManualSync}
@@ -152,11 +153,13 @@ export const LibraryView: React.FC = () => {
             <span>{isSyncing ? 'Syncing...' : 'Sync'}</span>
           </button>
 
-          {/* Runtime Status Pill */}
+          {/* Runtime Status Pill / Switcher */}
           <div
             onClick={() => setActiveView('settings')}
             className={`cursor-pointer px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all ${
-              runtimeStatus.state === 'online'
+              runtimeMode === 'demo'
+                ? 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20'
+                : runtimeStatus.state === 'online'
                 ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20'
                 : runtimeStatus.state === 'stopped'
                 ? 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20'
@@ -166,7 +169,9 @@ export const LibraryView: React.FC = () => {
           >
             <span
               className={`w-2 h-2 rounded-full ${
-                runtimeStatus.state === 'online'
+                runtimeMode === 'demo'
+                  ? 'bg-amber-400 animate-pulse'
+                  : runtimeStatus.state === 'online'
                   ? 'bg-emerald-400 animate-pulse'
                   : runtimeStatus.state === 'stopped'
                   ? 'bg-amber-400'
@@ -174,9 +179,16 @@ export const LibraryView: React.FC = () => {
               }`}
             />
             <span>
-              Ollama:{' '}
-              <strong className="capitalize">{runtimeStatus.state}</strong>
-              {runtimeStatus.version ? ` (${runtimeStatus.version})` : ''}
+              {runtimeMode === 'demo' ? (
+                <>
+                  Runtime: <strong>Demo Runtime</strong>
+                </>
+              ) : (
+                <>
+                  Ollama: <strong className="capitalize">{runtimeStatus.state}</strong>
+                  {runtimeStatus.version ? ` (${runtimeStatus.version})` : ''}
+                </>
+              )}
             </span>
           </div>
 
@@ -189,6 +201,51 @@ export const LibraryView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Demo Runtime Active Notice */}
+      {runtimeMode === 'demo' && (
+        <div className="p-3.5 rounded-xl bg-amber-950/30 border border-amber-500/40 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs text-amber-200">
+            <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              <strong className="text-white">Demo Runtime Active:</strong> Running in offline demonstration mode with deterministic local streaming. Perfect for presentation workflows without Ollama.
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setRuntimeMode('ollama');
+                showToast('Switched to Ollama Runtime', 'info');
+              }}
+              className="text-xs px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/10 font-medium transition-colors"
+            >
+              Switch to Ollama
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Ollama Offline Fallback Suggestion */}
+      {runtimeMode === 'ollama' && !runtimeStatus.available && (
+        <div className="p-3.5 rounded-xl bg-slate-900/90 border border-amber-500/30 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs text-slate-300">
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              <strong className="text-amber-300">Ollama is not running:</strong> You can test the complete Agora flow (Install → Launch → Playground) immediately using the built-in Demo Runtime.
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              setRuntimeMode('demo');
+              showToast('Switched to Demo Runtime Mode', 'info');
+            }}
+            className="text-xs font-bold px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 shadow transition-all shrink-0 flex items-center gap-1.5"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Use Demo Runtime</span>
+          </button>
+        </div>
+      )}
 
       {/* Account & Website Sync Status Notice */}
       {user ? (
@@ -209,64 +266,19 @@ export const LibraryView: React.FC = () => {
           </button>
         </div>
       ) : (
-        <div className="p-3.5 rounded-xl bg-amber-950/30 border border-amber-500/30 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-xs text-amber-200">
-            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+        <div className="p-3.5 rounded-xl bg-slate-900/60 border border-white/10 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <Bot className="w-4 h-4 text-cyan-400 shrink-0" />
             <span>
-              <strong className="text-white">Desktop not linked to web account:</strong> Sign in with the same email used on the ModalHub website to automatically sync your library models.
+              <strong className="text-white">Guest Mode:</strong> Models added in the store are stored in your local library. Sign in to synchronize across devices.
             </span>
           </div>
           <button
             onClick={() => openAuthModal('signin')}
-            className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-all shadow-sm shrink-0"
+            className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 hover:underline shrink-0"
           >
-            Sign In with Web Account
+            Sign In
           </button>
-        </div>
-      )}
-
-      {/* Discovered Local Hardware Models (Ollama) */}
-      {unlinkedLocalModels.length > 0 && (
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-cyan-950/40 via-slate-900 to-slate-900 border border-cyan-500/20 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Cpu className="w-4 h-4 text-cyan-400" />
-              <span className="text-xs font-bold text-slate-200">
-                Discovered on Local Hardware ({unlinkedLocalModels.length})
-              </span>
-            </div>
-            <span className="text-[10px] text-cyan-400 font-mono">Ready to launch with Ollama</span>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {unlinkedLocalModels.map((m) => (
-              <div
-                key={m.name}
-                className="flex items-center gap-2 bg-slate-950/80 border border-white/10 rounded-xl px-3 py-1.5"
-              >
-                <div className="min-w-0">
-                  <span className="text-xs font-bold text-white block truncate">{m.name}</span>
-                  {m.sizeFormatted && (
-                    <span className="text-[10px] text-slate-400 font-mono">{m.sizeFormatted}</span>
-                  )}
-                </div>
-                <button
-                  onClick={() => addToLibrary(m.name)}
-                  className="px-2 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-[10px] font-bold transition-colors flex items-center gap-1"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span>Add</span>
-                </button>
-                <button
-                  onClick={() => handleLaunchAndPlay(m.name)}
-                  className="px-2 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[10px] font-bold transition-colors flex items-center gap-1"
-                >
-                  <Play className="w-3 h-3 fill-current" />
-                  <span>Launch</span>
-                </button>
-              </div>
-            ))}
-          </div>
         </div>
       )}
 
@@ -350,11 +362,12 @@ export const LibraryView: React.FC = () => {
             if (!model) return null;
 
             const runtimeComp = resolveModelRuntime(model);
-            const isModal = isModalModel(model) || runtimeComp.runtime === 'modal';
+            const isDemoModel = model.id === 'qwen3-demo' || runtimeComp.runtime === 'demo' || runtimeMode === 'demo';
+            const isModal = !isDemoModel && (isModalModel(model) || runtimeComp.runtime === 'modal');
             const ollamaTag = runtimeComp.ollamaTag;
-            const isInstalled = runtimeComp.supported && isModelInstalled(ollamaTag);
-            const isRunning = runtimeComp.supported && isModelRunning(ollamaTag);
-            const pulling = runtimeComp.supported && isPulling(ollamaTag);
+            const isInstalled = isModelInstalled(ollamaTag);
+            const isRunning = isModelRunning(ollamaTag);
+            const pulling = isPulling(ollamaTag);
             const progress = pulling ? pullProgress[ollamaTag.toLowerCase()] : undefined;
             const isStarting = startingTags.has(ollamaTag);
             const isStopping = stoppingTags.has(ollamaTag);
@@ -369,7 +382,9 @@ export const LibraryView: React.FC = () => {
                 key={id || model_id}
                 onClick={() => openModelDetail(model.id)}
                 className={`group relative rounded-2xl bg-slate-900/80 border p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl cursor-pointer flex flex-col justify-between ${
-                  isModal
+                  isDemoModel
+                    ? 'border-amber-500/30 hover:border-amber-400/60 hover:shadow-amber-500/5'
+                    : isModal
                     ? 'border-indigo-500/30 hover:border-indigo-400/60 hover:shadow-indigo-500/10'
                     : 'border-white/10 hover:border-cyan-500/40 hover:shadow-cyan-500/5'
                 }`}
@@ -382,7 +397,28 @@ export const LibraryView: React.FC = () => {
                     </span>
 
                     {/* Status Indicator */}
-                    {isModal ? (
+                    {isDemoModel ? (
+                      isRunning ? (
+                        <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          Running (Demo)
+                        </span>
+                      ) : isInstalled ? (
+                        <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Installed
+                        </span>
+                      ) : pulling ? (
+                        <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          <RotateCw className="w-3 h-3 animate-spin" />
+                          Downloading
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                          Not Installed
+                        </span>
+                      )
+                    ) : isModal ? (
                       <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                         <Zap className="w-3 h-3 text-indigo-400" />
                         Modal Serverless
@@ -435,7 +471,12 @@ export const LibraryView: React.FC = () => {
                     <span className="px-1.5 py-0.5 rounded bg-slate-950 border border-white/5">
                       {model.parameters || 'Weights'}
                     </span>
-                    {isModal ? (
+                    {isDemoModel ? (
+                      <span className="px-1.5 py-0.5 rounded bg-amber-950/60 text-amber-300 border border-amber-500/20 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        Demo Runtime
+                      </span>
+                    ) : isModal ? (
                       <span className="px-1.5 py-0.5 rounded bg-indigo-950/60 text-indigo-300 border border-indigo-500/20 flex items-center gap-1">
                         <Cloud className="w-3 h-3" />
                         Modal Endpoint
@@ -546,7 +587,7 @@ export const LibraryView: React.FC = () => {
                             <span>Playground</span>
                           </button>
                         </>
-                      ) : runtimeComp.supported ? (
+                      ) : isDemoModel || runtimeComp.supported ? (
                         isRunning ? (
                           <>
                             <button
@@ -605,8 +646,8 @@ export const LibraryView: React.FC = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (!runtimeStatus.available) {
-                                showToast('Please start Ollama before downloading models.', 'error');
+                              if (!runtimeStatus.available && !isDemoModel && runtimeMode !== 'demo') {
+                                showToast('Please start Ollama before downloading models, or switch to Demo Runtime.', 'error');
                                 return;
                               }
                               installModel(ollamaTag);
@@ -629,16 +670,6 @@ export const LibraryView: React.FC = () => {
                             <span>API</span>
                             <ExternalLink className="w-3 h-3" />
                           </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleModalPlayground(model.id);
-                            }}
-                            className="px-3 py-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 text-xs font-semibold transition-colors flex items-center gap-1"
-                          >
-                            <Sparkles className="w-3 h-3" />
-                            <span>Playground</span>
-                          </button>
                         </>
                       )}
                     </div>
@@ -652,4 +683,3 @@ export const LibraryView: React.FC = () => {
     </div>
   );
 };
-

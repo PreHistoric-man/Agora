@@ -22,12 +22,13 @@ import {
   Square,
   Trash2,
   ExternalLink,
-  RotateCw
+  RotateCw,
+  HelpCircle
 } from 'lucide-react';
 
 export const LauncherSettings: React.FC = () => {
   const { user, profile, isAuthenticated, signOut, openAuthModal } = useAuth();
-  const { addToast } = useApp();
+  const { addToast, openOnboarding } = useApp();
   const {
     runtimeStatus,
     installedModels,
@@ -566,6 +567,16 @@ export const LauncherSettings: React.FC = () => {
               <div className="text-slate-500 text-[10px]">Identifier</div>
               <div className="font-bold text-cyan-400 mt-0.5 font-mono text-[10px]">com.agora.launcher</div>
             </div>
+          </div>
+
+          <div className="pt-2">
+            <button
+              onClick={openOnboarding}
+              className="px-4 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <HelpCircle size={14} />
+              How Agora Works (Interactive Tour)
+            </button>
           </div>
         </div>
       )}

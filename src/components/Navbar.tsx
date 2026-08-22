@@ -17,7 +17,8 @@ import {
   Zap,
   ChevronDown,
   Box,
-  Download
+  Download,
+  HelpCircle
 } from 'lucide-react';
 import { UserProfileModal } from './UserProfileModal';
 
@@ -33,7 +34,8 @@ export const Navbar: React.FC = () => {
     searchQuery,
     setSearchQuery,
     notifications,
-    markNotificationsRead
+    markNotificationsRead,
+    openOnboarding
   } = useApp();
 
   const {
@@ -181,6 +183,16 @@ export const Navbar: React.FC = () => {
 
           {/* Right Side: Cart, Wishlist, Notifications & User */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* How Agora Works / Help Button */}
+            <button
+              onClick={openOnboarding}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-slate-400 hover:text-cyan-300 hover:bg-white/5 border border-transparent hover:border-white/10 text-xs font-semibold transition-all cursor-pointer"
+              title="How Agora Works (Tutorial & Overview)"
+            >
+              <HelpCircle size={15} className="text-cyan-400" />
+              <span className="hidden xl:inline">How It Works</span>
+            </button>
+
             {/* API Access Cart Button */}
             <button
               onClick={() => setView('cart')}
@@ -306,6 +318,16 @@ export const Navbar: React.FC = () => {
                     >
                       <User size={14} className="text-indigo-400" />
                       Developer Settings
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowUserDropdown(false);
+                        openOnboarding();
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 flex items-center gap-2 cursor-pointer"
+                    >
+                      <HelpCircle size={14} className="text-cyan-400" />
+                      How Agora Works
                     </button>
                     <div className="my-1 border-t border-white/5"></div>
                     <button

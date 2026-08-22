@@ -10,7 +10,8 @@ import {
   Copy,
   Calendar,
   Mail,
-  Loader2
+  Loader2,
+  HelpCircle
 } from 'lucide-react';
 
 interface UserProfileModalProps {
@@ -22,7 +23,7 @@ const AVATAR_OPTIONS = ['🛸', '🤖', '⚡', '🌌', '🚀', '🧠', '🔮', '
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) => {
   const { user, profile, updateProfile, signOut } = useAuth();
-  const { addToast, setView } = useApp();
+  const { addToast, setView, openOnboarding } = useApp();
 
   const [displayName, setDisplayName] = useState(() => profile?.display_name || user?.user_metadata?.display_name || user?.email?.split('@')[0] || '');
   const [username, setUsername] = useState(() => profile?.username || user?.user_metadata?.username || user?.email?.split('@')[0] || '');
@@ -207,6 +208,24 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
               <span className="text-slate-300">{createdDate}</span>
             </div>
           </div>
+
+          {/* How Agora Works Interactive Tour Link */}
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              openOnboarding();
+            }}
+            className="w-full flex items-center justify-between p-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/10 text-xs font-medium text-cyan-300 transition-colors cursor-pointer"
+          >
+            <span className="flex items-center gap-2">
+              <HelpCircle size={15} className="text-cyan-400" />
+              <span>How Agora Works (Onboarding Tour)</span>
+            </span>
+            <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">
+              Reopen Tour →
+            </span>
+          </button>
 
           {/* Action Buttons */}
           <div className="flex items-center justify-between gap-3 pt-2">

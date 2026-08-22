@@ -3,6 +3,7 @@ import { useRuntime } from '../context/RuntimeContext';
 import { useLauncher, resolveModelFromPool } from '../context/LauncherContext';
 import { resolveModelRuntime, isModalModel } from '../lib/modelCompatibility';
 import { ollamaService } from '../lib/ollamaService';
+import { demoRuntimeService } from '../lib/demoRuntimeService';
 import type { ChatMessage, ChatOptions } from '../types/runtime';
 import {
   Sparkles,
@@ -23,10 +24,14 @@ import {
   Zap,
   Cloud,
   ExternalLink,
+  Bot,
+  RotateCcw,
 } from 'lucide-react';
 
 export const PlaygroundView: React.FC = () => {
   const {
+    runtimeMode,
+    setRuntimeMode,
     runtimeStatus,
     installedModels,
     runningModels,
@@ -37,6 +42,7 @@ export const PlaygroundView: React.FC = () => {
     stopModel,
     startingTags,
     refreshRuntime,
+    resetDemo,
     endpoint,
   } = useRuntime();
 
@@ -77,6 +83,8 @@ export const PlaygroundView: React.FC = () => {
         setActiveModelTag(installedModels[0].model || installedModels[0].name);
       } else if (libraryItems.length > 0 && libraryItems[0].model) {
         setActiveModelTag(libraryItems[0].model.id);
+      } else {
+        setActiveModelTag('qwen3-demo');
       }
     }
   }, [activeModelTag, runningModels, installedModels, libraryItems, setActiveModelTag]);
@@ -90,7 +98,14 @@ export const PlaygroundView: React.FC = () => {
     return cleanActive === cleanTag || (activeModelTag || '').toLowerCase().includes(m.id.toLowerCase());
   }) || resolveModelFromPool(activeModelTag || '', models);
 
-  const isModal = isModalModel(matchingAgoraModel) || resolveModelRuntime(matchingAgoraModel).runtime === 'modal';
+  const isDemo =
+    activeModelTag === 'qwen3-demo' ||
+    (activeModelTag || '').toLowerCase().includes('qwen3-demo') ||
+    matchingAgoraModel?.runtime === 'demo' ||
+    matchingAgoraModel?.id === 'qwen3-demo' ||
+    runtimeMode === 'demo';
+
+  const isModal = !isDemo && (isModalModel(matchingAgoraModel) || resolveModelRuntime(matchingAgoraModel).runtime === 'modal');
   const currentRunning = activeModelTag ? isModelRunning(activeModelTag) : false;
   const isStartingCurrent = activeModelTag ? startingTags.has(activeModelTag) : false;
   const displayModelName = matchingAgoraModel?.name || activeModelTag || 'AI Model';
@@ -122,35 +137,89 @@ export const PlaygroundView: React.FC = () => {
     const textToSend = (promptText || inputPrompt).trim();
     if (!textToSend || !activeModelTag || isGenerating) return;
 
-    // Check if this is a Modal / Cloud model
+    const userMessageId = `user_${Date.now()}`;
+    const assistantMessageId = `assistant_${Date.now()}`;
+
+    const userMsg: ChatMessage = {
+      id: userMessageId,
+      role: 'user',
+      content: textToSend,
+      timestamp: Date.now(),
+    };
+
+    const initialAssistantMsg: ChatMessage = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: Date.now(),
+      isStreaming: true,
+    };
+
+    const newHistory = [...messages, userMsg];
+    setMessages([...newHistory, initialAssistantMsg]);
+    setInputPrompt('');
+    setIsGenerating(true);
+
+    const controller = new AbortController();
+    activeAbortController.current = controller;
+
+    // 1. DEMO RUNTIME FLOW (Hackathon local simulation with deterministic streaming)
+    if (isDemo) {
+      const startTime = Date.now();
+      let accumulated = '';
+
+      try {
+        await demoRuntimeService.streamChat(
+          activeModelTag || 'qwen3-demo',
+          textToSend,
+          (chunk) => {
+            accumulated += chunk.content;
+            const elapsedSec = Math.max(0.1, (Date.now() - startTime) / 1000);
+            const tokens = chunk.tokens || Math.round(accumulated.length / 4);
+            const tokensPerSec = Math.round(tokens / elapsedSec);
+
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMessageId
+                  ? {
+                      ...msg,
+                      content: accumulated,
+                      tokens,
+                      tokensPerSec,
+                      durationMs: Date.now() - startTime,
+                      isStreaming: !chunk.done,
+                    }
+                  : msg
+              )
+            );
+          },
+          controller.signal
+        );
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantMessageId
+                ? {
+                    ...msg,
+                    content: accumulated || `Demo error: ${err.message || 'Generation issue'}`,
+                    isStreaming: false,
+                    error: true,
+                  }
+                : msg
+            )
+          );
+        }
+      } finally {
+        setIsGenerating(false);
+        activeAbortController.current = null;
+        setTimeout(() => textareaRef.current?.focus(), 100);
+      }
+      return;
+    }
+
+    // 2. MODAL SERVERLESS FLOW
     if (isModal) {
-      const userMessageId = `user_${Date.now()}`;
-      const assistantMessageId = `assistant_${Date.now()}`;
-
-      const userMsg: ChatMessage = {
-        id: userMessageId,
-        role: 'user',
-        content: textToSend,
-        timestamp: Date.now(),
-      };
-
-      const initialAssistantMsg: ChatMessage = {
-        id: assistantMessageId,
-        role: 'assistant',
-        content: '',
-        timestamp: Date.now(),
-        isStreaming: true,
-      };
-
-      const newHistory = [...messages, userMsg];
-      setMessages([...newHistory, initialAssistantMsg]);
-      setInputPrompt('');
-      setIsGenerating(true);
-
-      const controller = new AbortController();
-      activeAbortController.current = controller;
-
-      // Stream Modal inference response
       try {
         const startTime = Date.now();
         const fullResponse = `[Modal Serverless Runtime: ${matchingAgoraModel?.name || activeModelTag}]\n\nResponding to prompt: "${textToSend}"\n\nExecution Environment: Modal GPU Container (A10G)\nCold-start Latency: 0.12s\n\n${
@@ -209,9 +278,11 @@ export const PlaygroundView: React.FC = () => {
       return;
     }
 
-    // Local Ollama flow
+    // 3. REAL LOCAL OLLAMA FLOW
     if (!runtimeStatus.available) {
-      showToast('Ollama service is unreachable. Please start Ollama first in Settings.', 'error');
+      showToast('Ollama service is unreachable. Starting on Demo Runtime or enable Ollama in Settings.', 'warning');
+      // If user wants to fallback to demo runtime
+      setRuntimeMode('demo');
       return;
     }
 
@@ -223,32 +294,6 @@ export const PlaygroundView: React.FC = () => {
         return;
       }
     }
-
-    const userMessageId = `user_${Date.now()}`;
-    const assistantMessageId = `assistant_${Date.now()}`;
-
-    const userMsg: ChatMessage = {
-      id: userMessageId,
-      role: 'user',
-      content: textToSend,
-      timestamp: Date.now(),
-    };
-
-    const initialAssistantMsg: ChatMessage = {
-      id: assistantMessageId,
-      role: 'assistant',
-      content: '',
-      timestamp: Date.now(),
-      isStreaming: true,
-    };
-
-    const newHistory = [...messages, userMsg];
-    setMessages([...newHistory, initialAssistantMsg]);
-    setInputPrompt('');
-    setIsGenerating(true);
-
-    const controller = new AbortController();
-    activeAbortController.current = controller;
 
     const chatHistoryPayload = newHistory.map((m) => ({
       role: m.role,
@@ -343,12 +388,14 @@ export const PlaygroundView: React.FC = () => {
         <div className="flex items-center gap-3 min-w-0">
           <div
             className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 shadow-sm ${
-              isModal
+              isDemo
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                : isModal
                 ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400'
                 : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
             }`}
           >
-            {isModal ? <Zap className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
+            {isDemo ? <Sparkles className="w-5 h-5 text-amber-400" /> : isModal ? <Zap className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
           </div>
 
           <div>
@@ -361,8 +408,11 @@ export const PlaygroundView: React.FC = () => {
                   disabled={isGenerating}
                   className="bg-slate-900 border border-white/10 hover:border-cyan-500/40 text-white text-xs font-bold rounded-lg px-2.5 py-1 pr-7 focus:outline-none focus:border-cyan-500 appearance-none cursor-pointer"
                 >
+                  {/* Qwen3 Demo option */}
+                  <option value="qwen3-demo">Qwen3 Demo (Demo Local AI)</option>
+
                   {/* Active selection if not in lists */}
-                  {activeModelTag && (
+                  {activeModelTag && activeModelTag !== 'qwen3-demo' && (
                     <option value={activeModelTag}>
                       {displayModelName} ({isModal ? 'Modal' : 'Selected'})
                     </option>
@@ -370,7 +420,7 @@ export const PlaygroundView: React.FC = () => {
 
                   {/* Local Installed Ollama Models */}
                   {installedModels.length > 0 && (
-                    <optgroup label="Local Ollama Models">
+                    <optgroup label="Local Installed Models">
                       {installedModels.map((m) => (
                         <option key={m.name} value={m.name}>
                           {m.name} {m.sizeFormatted ? `(${m.sizeFormatted})` : ''}
@@ -384,7 +434,7 @@ export const PlaygroundView: React.FC = () => {
                     <optgroup label="Agora Library Models">
                       {libraryItems.map((item) => {
                         const m = item.model;
-                        if (!m || m.id === activeModelTag) return null;
+                        if (!m || m.id === activeModelTag || m.id === 'qwen3-demo') return null;
                         const itemIsModal = isModalModel(m);
                         return (
                           <option key={m.id} value={m.id}>
@@ -399,7 +449,12 @@ export const PlaygroundView: React.FC = () => {
               </div>
 
               {/* Status Badge */}
-              {isModal ? (
+              {isDemo ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-sm">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  Demo Runtime
+                </span>
+              ) : isModal ? (
                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                   <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
                   Modal Serverless (Ready)
@@ -420,13 +475,15 @@ export const PlaygroundView: React.FC = () => {
             <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono mt-0.5">
               <span>
                 Runtime:{' '}
-                <strong className={isModal ? 'text-indigo-300' : 'text-slate-200'}>
-                  {isModal ? 'Modal Serverless' : 'Ollama'}
+                <strong className={isDemo ? 'text-amber-300' : isModal ? 'text-indigo-300' : 'text-slate-200'}>
+                  {isDemo ? 'Demo Runtime (Simulation Mode)' : isModal ? 'Modal Serverless' : 'Ollama'}
                 </strong>
               </span>
               <span>•</span>
               <span className="text-slate-400">
-                {isModal
+                {isDemo
+                  ? 'local://demo-runtime'
+                  : isModal
                   ? matchingAgoraModel?.endpoint || 'https://api.modal.run/v1/inference'
                   : endpoint}
               </span>
@@ -436,7 +493,19 @@ export const PlaygroundView: React.FC = () => {
 
         {/* Right Controls */}
         <div className="flex items-center gap-2">
-          {isModal ? (
+          {isDemo ? (
+            <button
+              onClick={() => {
+                resetDemo();
+                showToast('Demo state reset to clean installation state', 'info');
+              }}
+              title="Reset Demo Model state"
+              className="px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold transition-colors flex items-center gap-1.5"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset Demo</span>
+            </button>
+          ) : isModal ? (
             <button
               onClick={() => openModelDetail(matchingAgoraModel?.id || activeModelTag || '')}
               className="px-3 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 text-xs font-semibold transition-colors flex items-center gap-1.5"
@@ -449,24 +518,19 @@ export const PlaygroundView: React.FC = () => {
               {currentRunning ? (
                 <button
                   onClick={() => stopModel(activeModelTag)}
-                  disabled={isGenerating}
                   className="px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-xs font-semibold transition-colors flex items-center gap-1.5"
                 >
-                  <Square className="w-3.5 h-3.5" />
-                  <span>Stop Model</span>
+                  <Square className="w-3.5 h-3.5 fill-current" />
+                  <span>Unload</span>
                 </button>
               ) : (
                 <button
                   onClick={() => startModel(activeModelTag)}
-                  disabled={isStartingCurrent || isGenerating}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition-all shadow-md shadow-emerald-500/20 flex items-center gap-1.5"
+                  disabled={isStartingCurrent}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition-colors flex items-center gap-1.5"
                 >
-                  {isStartingCurrent ? (
-                    <RotateCw className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Play className="w-3.5 h-3.5 fill-current" />
-                  )}
-                  <span>Launch</span>
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <span>{isStartingCurrent ? 'Starting...' : 'Load into Memory'}</span>
                 </button>
               )}
             </>
@@ -475,12 +539,12 @@ export const PlaygroundView: React.FC = () => {
           {/* Config Settings Toggle */}
           <button
             onClick={() => setShowConfig(!showConfig)}
-            className={`p-2 rounded-lg border text-xs font-semibold transition-colors ${
+            className={`p-1.5 rounded-lg border text-xs font-semibold transition-colors ${
               showConfig
                 ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
-                : 'bg-slate-900 text-slate-400 hover:text-white border-white/10'
+                : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-white/10'
             }`}
-            title="Sampling & System Parameters"
+            title="Inference Hyperparameters"
           >
             <Settings2 className="w-4 h-4" />
           </button>
@@ -488,262 +552,141 @@ export const PlaygroundView: React.FC = () => {
           {/* Clear Chat */}
           <button
             onClick={handleClear}
-            disabled={messages.length === 0 || isGenerating}
-            className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-rose-400 border border-white/10 transition-colors disabled:opacity-40"
-            title="Clear Conversation"
+            disabled={messages.length === 0}
+            className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-slate-300 hover:text-rose-400 border border-white/10 text-xs font-semibold transition-colors"
+            title="Clear Chat History"
           >
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Collapsible Model Parameters Panel */}
-      {showConfig && (
-        <div className="px-6 py-3 bg-slate-900 border-b border-white/10 flex flex-wrap items-center gap-6 text-xs text-slate-300 animate-fade-in shrink-0">
-          <div className="flex items-center gap-3">
-            <span className="font-semibold text-slate-400">Temperature:</span>
-            <input
-              type="range"
-              min={0}
-              max={1.5}
-              step={0.05}
-              value={temperature}
-              onChange={(e) => setTemperature(parseFloat(e.target.value))}
-              className="w-28 accent-cyan-500"
-            />
-            <span className="font-mono text-cyan-300">{temperature.toFixed(2)}</span>
-          </div>
-
-          <div className="flex-1 min-w-[240px] flex items-center gap-2">
-            <span className="font-semibold text-slate-400 whitespace-nowrap">System Prompt:</span>
-            <input
-              type="text"
-              value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
-              placeholder="Instructions for the AI..."
-              className="flex-1 bg-slate-950 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-cyan-500/50"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Main Chat Thread Area */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-        {/* State 1: Ollama Server Offline Notice */}
-        {!runtimeStatus.available && (
-          <div className="max-w-xl mx-auto p-5 rounded-2xl bg-rose-950/30 border border-rose-500/30 space-y-3 text-center my-6">
-            <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto">
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-white">Ollama Server Offline</h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Agora cannot reach the local Ollama runtime at <code className="text-rose-300 font-mono">{endpoint}</code>.
-              </p>
-            </div>
-            <div className="text-xs text-slate-300 bg-slate-950/60 p-3 rounded-xl border border-white/5 text-left font-mono space-y-1">
-              <div className="text-slate-500">// Start Ollama in terminal or launch Ollama app:</div>
-              <div className="text-cyan-300">ollama serve</div>
-            </div>
-            <button
-              onClick={() => refreshRuntime()}
-              className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-slate-950 font-bold text-xs transition-all shadow-md inline-flex items-center gap-2"
-            >
-              <RotateCw className="w-3.5 h-3.5" />
-              <span>Retry Connection</span>
-            </button>
-          </div>
-        )}
-
-        {/* State 2: No Models Installed */}
-        {runtimeStatus.available && installedModels.length === 0 && (
-          <div className="max-w-md mx-auto p-8 rounded-2xl bg-slate-900/40 border border-white/5 space-y-4 text-center my-8">
-            <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center mx-auto text-slate-500">
-              <Cpu className="w-6 h-6 text-cyan-400" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold text-slate-200">No Local Models Installed</h3>
-              <p className="text-xs text-slate-400">
-                You need at least one open-weights model in your local Ollama storage (e.g., Qwen 2.5 Coder, DeepSeek R1, Llama 3.2).
-              </p>
-            </div>
-            <button
-              onClick={() => setActiveView('library')}
-              className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-cyan-500/20 inline-flex items-center gap-2"
-            >
-              <Layers className="w-4 h-4" />
-              <span>Go to Library to Install</span>
-            </button>
-          </div>
-        )}
-
-        {/* State 3: Model Not Running Banner inside Playground */}
-        {runtimeStatus.available && installedModels.length > 0 && !currentRunning && (
-          <div className="max-w-2xl mx-auto p-4 rounded-xl bg-slate-900/80 border border-white/10 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-              <div>
-                <div className="text-xs font-bold text-slate-200">
-                  Model <span className="text-cyan-300">{displayModelName}</span> is currently stopped
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Chat Stream View */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Messages Container */}
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+            {messages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center p-6 max-w-lg mx-auto">
+                <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 mb-4 shadow-lg shadow-cyan-500/5">
+                  <Sparkles className="w-7 h-7" />
                 </div>
-                <div className="text-[11px] text-slate-400">
-                  Click start to load model weights into RAM/VRAM for instant generation.
+                <h3 className="text-base font-bold text-white mb-1">
+                  Ready to test {displayModelName}
+                </h3>
+                <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+                  {isDemo
+                    ? 'Running on Agora Demo Runtime. Type any prompt or select a quick question below to test deterministic local inference.'
+                    : isModal
+                    ? 'Connected to Modal Serverless GPU cluster. Experience zero-config, autoscaling inference.'
+                    : 'Chat with local AI model running offline on your hardware.'}
+                </p>
+
+                {/* Quick Prompts Grid */}
+                <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
+                  {quickPrompts.map((q, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleSendMessage(q)}
+                      className="p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800/90 border border-white/10 hover:border-cyan-500/30 text-xs text-slate-300 hover:text-white transition-all text-left group"
+                    >
+                      <span className="text-cyan-400 group-hover:translate-x-0.5 inline-block transition-transform mr-1.5">
+                        →
+                      </span>
+                      {q}
+                    </button>
+                  ))}
                 </div>
               </div>
-            </div>
-            <button
-              onClick={() => activeModelTag && startModel(activeModelTag)}
-              disabled={isStartingCurrent}
-              className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition-all shadow-sm flex items-center gap-1.5 shrink-0"
-            >
-              {isStartingCurrent ? (
-                <>
-                  <RotateCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>Loading...</span>
-                </>
-              ) : (
-                <>
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>Start Model</span>
-                </>
-              )}
-            </button>
-          </div>
-        )}
-
-        {/* Conversation Message List */}
-        {messages.length === 0 && runtimeStatus.available && installedModels.length > 0 ? (
-          <div className="max-w-2xl mx-auto py-12 text-center space-y-6">
-            <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mx-auto text-cyan-400">
-              <Sparkles className="w-6 h-6" />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-lg font-bold text-white tracking-tight">
-                AI Inference Playground
-              </h2>
-              <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-                Chat directly with your local instance of <strong className="text-cyan-300">{displayModelName}</strong> via Ollama on <span className="font-mono text-slate-300">127.0.0.1:11434</span>. Zero cloud latency, 100% private.
-              </p>
-            </div>
-
-            {/* Quick Prompt Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left max-w-xl mx-auto pt-2">
-              {quickPrompts.map((qp, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleSendMessage(qp)}
-                  className="p-3 rounded-xl bg-slate-900/60 border border-white/5 hover:border-cyan-500/30 hover:bg-slate-900 transition-all text-xs text-slate-300 text-left group flex items-start justify-between gap-2"
-                >
-                  <span className="group-hover:text-cyan-200 transition-colors leading-relaxed">{qp}</span>
-                  <Send className="w-3 h-3 text-slate-600 group-hover:text-cyan-400 shrink-0 mt-0.5" />
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="max-w-3xl mx-auto space-y-6">
-            {messages.map((msg) => {
-              const isUser = msg.role === 'user';
-              return (
+            ) : (
+              messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1.5`}
+                  className={`flex gap-3 max-w-4xl mx-auto ${
+                    msg.role === 'user' ? 'justify-end' : 'justify-start'
+                  }`}
                 >
-                  {/* Sender Header */}
-                  <div className="flex items-center gap-2 text-[10px] text-slate-500 px-1 font-semibold uppercase tracking-wider">
-                    {isUser ? (
-                      <span>You</span>
-                    ) : (
-                      <span className="text-cyan-400 flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" />
-                        {displayModelName}
-                      </span>
-                    )}
-                    <span>•</span>
-                    <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  </div>
+                  {msg.role === 'assistant' && (
+                    <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shrink-0 text-cyan-400 mt-1">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                  )}
 
-                  {/* Bubble */}
                   <div
-                    className={`relative p-4 rounded-2xl text-xs leading-relaxed max-w-[90%] whitespace-pre-wrap break-words ${
-                      isUser
-                        ? 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-slate-950 font-medium rounded-tr-none shadow-md shadow-cyan-500/10'
-                        : 'bg-slate-900/90 border border-white/10 text-slate-200 rounded-tl-none font-normal shadow-lg'
+                    className={`rounded-2xl p-4 text-xs leading-relaxed max-w-[85%] relative group ${
+                      msg.role === 'user'
+                        ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/10 rounded-br-sm'
+                        : 'bg-slate-900/90 border border-white/10 text-slate-200 rounded-bl-sm shadow-sm'
                     }`}
                   >
-                    {msg.content ? (
-                      <div>{msg.content}</div>
-                    ) : msg.isStreaming ? (
-                      <div className="flex items-center gap-2 text-slate-400 italic">
-                        <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                        <span>Generating response...</span>
-                      </div>
-                    ) : null}
+                    {/* Message Header / Meta */}
+                    <div className="flex items-center justify-between gap-4 mb-2 pb-1.5 border-b border-white/5 text-[10px] text-slate-400">
+                      <span className="font-semibold text-slate-300">
+                        {msg.role === 'user' ? 'You' : displayModelName}
+                      </span>
 
-                    {/* Assistant Footer Telemetry */}
-                    {!isUser && (msg.tokens || msg.tokensPerSec) && (
-                      <div className="pt-3 mt-3 border-t border-white/5 flex items-center justify-between text-[10px] text-slate-400 font-mono">
-                        <div className="flex items-center gap-3">
+                      {msg.role === 'assistant' && (
+                        <div className="flex items-center gap-2 font-mono">
                           {msg.tokens && <span>{msg.tokens} tokens</span>}
                           {msg.tokensPerSec && (
-                            <span className="text-emerald-400 font-bold">
-                              ⚡ {msg.tokensPerSec} tok/s
+                            <span className="text-emerald-400">
+                              {msg.tokensPerSec} tok/s
                             </span>
                           )}
-                          {msg.durationMs && (
-                            <span>{(msg.durationMs / 1000).toFixed(1)}s</span>
-                          )}
+                          <button
+                            onClick={() => handleCopy(msg.content, msg.id)}
+                            className="p-1 hover:text-white text-slate-400 transition-colors"
+                            title="Copy Response"
+                          >
+                            {copiedId === msg.id ? (
+                              <Check className="w-3 h-3 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-3 h-3" />
+                            )}
+                          </button>
                         </div>
+                      )}
+                    </div>
 
-                        <button
-                          onClick={() => handleCopy(msg.content, msg.id)}
-                          className="p-1 text-slate-400 hover:text-white transition-colors"
-                          title="Copy response"
-                        >
-                          {copiedId === msg.id ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-400" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                      </div>
-                    )}
+                    {/* Message Body */}
+                    <div className="whitespace-pre-wrap break-words font-sans">
+                      {msg.content}
+                      {msg.isStreaming && (
+                        <span className="inline-block w-1.5 h-3.5 bg-cyan-400 ml-1 animate-pulse" />
+                      )}
+                    </div>
                   </div>
+
+                  {msg.role === 'user' && (
+                    <div className="w-8 h-8 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center shrink-0 text-slate-300 mt-1">
+                      <span className="text-xs font-bold">U</span>
+                    </div>
+                  )}
                 </div>
-              );
-            })}
+              ))
+            )}
             <div ref={chatBottomRef} />
           </div>
-        )}
-      </div>
 
-      {/* Bottom Input Field Container */}
-      <div className="p-4 md:p-5 border-t border-white/10 bg-slate-950/90 shrink-0">
-        <div className="max-w-3xl mx-auto space-y-2">
-          <div className="relative rounded-2xl bg-slate-900 border border-white/10 focus-within:border-cyan-500/60 focus-within:ring-1 focus-within:ring-cyan-500/20 transition-all p-2 flex items-end gap-2 shadow-2xl">
-            <textarea
-              ref={textareaRef}
-              rows={2}
-              value={inputPrompt}
-              onChange={(e) => setInputPrompt(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={isGenerating || !runtimeStatus.available || installedModels.length === 0}
-              placeholder={
-                !runtimeStatus.available
-                  ? 'Ollama is offline. Start Ollama to begin chatting...'
-                  : installedModels.length === 0
-                  ? 'No models installed. Download a model from your Library first.'
-                  : `Ask ${displayModelName} something... (Enter to send, Shift+Enter for new line)`
-              }
-              className="w-full bg-transparent resize-none px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none leading-relaxed"
-            />
+          {/* Input Box Bar */}
+          <div className="p-4 border-t border-white/10 bg-slate-950/90">
+            <div className="max-w-4xl mx-auto flex items-end gap-2 bg-slate-900 border border-white/10 focus-within:border-cyan-500/50 rounded-2xl p-2 transition-colors">
+              <textarea
+                ref={textareaRef}
+                value={inputPrompt}
+                onChange={(e) => setInputPrompt(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={`Ask ${displayModelName} anything... (Enter to send, Shift+Enter for newline)`}
+                rows={1}
+                disabled={isGenerating}
+                className="flex-1 bg-transparent border-0 resize-none text-xs text-white placeholder-slate-500 focus:outline-none px-2 py-1.5 max-h-32 min-h-[38px]"
+              />
 
-            <div className="flex items-center gap-1.5 pb-1 pr-1">
               {isGenerating ? (
                 <button
                   onClick={handleStopGeneration}
-                  className="px-3 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-slate-950 font-bold text-xs transition-all shadow-md flex items-center gap-1.5"
-                  title="Stop generating"
+                  className="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md transition-colors"
                 >
                   <Square className="w-3.5 h-3.5 fill-current" />
                   <span>Stop</span>
@@ -751,32 +694,125 @@ export const PlaygroundView: React.FC = () => {
               ) : (
                 <button
                   onClick={() => handleSendMessage()}
-                  disabled={
-                    !inputPrompt.trim() ||
-                    !runtimeStatus.available ||
-                    installedModels.length === 0
-                  }
-                  className={`p-2.5 rounded-xl transition-all ${
-                    inputPrompt.trim() && runtimeStatus.available && installedModels.length > 0
-                      ? 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-md shadow-cyan-500/20'
-                      : 'bg-slate-800 text-slate-600 cursor-not-allowed'
-                  }`}
-                  title="Send message"
+                  disabled={!inputPrompt.trim()}
+                  className="px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-40 disabled:hover:bg-cyan-500 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-cyan-500/20 transition-all cursor-pointer"
                 >
-                  <Send className="w-4 h-4" />
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Send</span>
                 </button>
               )}
             </div>
-          </div>
-
-          <div className="flex items-center justify-between text-[10px] text-slate-500 px-2 font-mono">
-            <span className="flex items-center gap-1">
-              <Terminal className="w-3 h-3" />
-              <span>Native Local Ollama Engine</span>
-            </span>
-            <span>Shift + Enter for multi-line</span>
+            <div className="max-w-4xl mx-auto mt-2 flex items-center justify-between text-[11px] text-slate-400 px-1">
+              <span>
+                {isDemo
+                  ? '⚡ Agora Demo Local AI Runtime • Deterministic Local Simulation'
+                  : isModal
+                  ? '☁️ Modal Serverless Endpoint • Zero-Cold-Start Containers'
+                  : '🔒 100% Local Inference • Runs Offline on Your Hardware'}
+              </span>
+              <span>Tokens stream in real-time</span>
+            </div>
           </div>
         </div>
+
+        {/* Sidebar Config Panel (Slide in) */}
+        {showConfig && (
+          <div className="w-72 border-l border-white/10 bg-slate-900/95 p-4 space-y-5 overflow-y-auto shrink-0 animate-in slide-in-from-right duration-200">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-extrabold text-white uppercase tracking-wider">
+                Inference Parameters
+              </h4>
+              <button
+                onClick={() => setShowConfig(false)}
+                className="text-slate-400 hover:text-white text-xs"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Runtime Mode Selector */}
+            <div className="space-y-2">
+              <label className="text-[11px] font-semibold text-slate-300 block">
+                Launcher Runtime Mode
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    setRuntimeMode('ollama');
+                    showToast('Switched to Ollama Runtime Mode', 'info');
+                  }}
+                  className={`p-2 rounded-xl border text-xs font-bold transition-all text-center ${
+                    runtimeMode === 'ollama'
+                      ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300'
+                      : 'bg-slate-950 border-white/10 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Ollama
+                </button>
+                <button
+                  onClick={() => {
+                    setRuntimeMode('demo');
+                    showToast('Switched to Demo Runtime Mode', 'info');
+                  }}
+                  className={`p-2 rounded-xl border text-xs font-bold transition-all text-center ${
+                    runtimeMode === 'demo'
+                      ? 'bg-amber-500/20 border-amber-500 text-amber-300'
+                      : 'bg-slate-950 border-white/10 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Demo Runtime
+                </button>
+              </div>
+            </div>
+
+            {/* Temperature */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-300 font-semibold">Temperature</span>
+                <span className="text-cyan-400 font-mono">{temperature}</span>
+              </div>
+              <input
+                type="range"
+                min="0.0"
+                max="1.5"
+                step="0.05"
+                value={temperature}
+                onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                className="w-full accent-cyan-400"
+              />
+              <p className="text-[10px] text-slate-400">
+                Controls creativity vs determinism. Lower values produce more focused answers.
+              </p>
+            </div>
+
+            {/* System Prompt */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-300 block">
+                System Instructions
+              </label>
+              <textarea
+                value={systemPrompt}
+                onChange={(e) => setSystemPrompt(e.target.value)}
+                rows={4}
+                className="w-full bg-slate-950 border border-white/10 rounded-xl p-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 resize-none font-mono"
+              />
+            </div>
+
+            {/* Reset Demo Option */}
+            <div className="pt-4 border-t border-white/10">
+              <button
+                onClick={() => {
+                  resetDemo();
+                  showToast('Demo models and state reset', 'info');
+                }}
+                className="w-full py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold transition-colors flex items-center justify-center gap-2"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset Demo State</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

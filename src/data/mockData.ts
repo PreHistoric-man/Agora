@@ -261,6 +261,91 @@ export const mockCreators: Creator[] = [
 // 20 High-Quality Mock AI Model APIs
 export const mockModels: Model[] = [
   {
+    id: 'qwen3-demo',
+    name: 'Qwen3 Demo',
+    provider: 'Alibaba Cloud',
+    providerLogo: '⚡',
+    creatorId: 'c4',
+    description: 'Ultra-compact demo model optimized for Agora Demo Local AI Runtime testing and presentation flow.',
+    longDescription: 'Qwen3 Demo is a specialized lightweight demonstration foundation model configured for Agora Launcher Demo Runtime. It provides deterministic progressive streaming for coding, algorithms, reasoning, and offline presentation testing without requiring Ollama installation.',
+    category: 'Coding',
+    tags: ['DEMO RUNTIME', 'CODING', 'LIGHTWEIGHT', 'LOCAL AI', 'FAST', 'OPEN WEIGHTS'],
+    overallScore: 96.5,
+    codingScore: 97.2,
+    reasoningScore: 94.4,
+    mathScore: 93.1,
+    visionScore: 0,
+    speedTokensPerSec: 145,
+    latencyMs: 8,
+    contextWindow: '32K tokens',
+    contextWindowTokens: 32768,
+    parameters: '0.6B Demo',
+    inputPricePerMillion: 0.05,
+    outputPricePerMillion: 0.20,
+    cachedInputPricePerMillion: 0.02,
+    batchDiscountPercent: 50,
+    isOpenSource: true,
+    license: 'Apache 2.0',
+    accessMethods: ['Demo Runtime', 'Local Ollama', 'REST API', 'Playground'],
+    endpoint: 'local://demo-runtime',
+    modelEndpointId: 'qwen3-demo',
+    runtime: 'demo',
+    runtime_model_id: 'qwen3-demo',
+    runtimeModelId: 'qwen3-demo',
+    bestFor: 'Hackathon presentations, offline demonstration flow, instant local inference, and code synthesis testing.',
+    capabilities: ['Agora Demo Runtime', 'Progressive Streaming', 'Code Synthesis', 'Zero Setup Required'],
+    sampleCurl: `curl -X POST http://localhost:11434/api/chat \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "qwen3-demo",
+    "messages": [{"role": "user", "content": "Explain recursion in C++."}]
+  }'`,
+    samplePython: `import requests
+response = requests.post("http://localhost:11434/api/chat", json={
+    "model": "qwen3-demo",
+    "messages": [{"role": "user", "content": "Explain recursion in C++."}]
+})
+print(response.json())`,
+    sampleNode: `fetch("http://localhost:11434/api/chat", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ model: "qwen3-demo", messages: [{ role: "user", content: "Hello Qwen3 Demo!" }] })
+});`,
+    hardwareRequirements: {
+      gpu: 'CPU / Any integrated GPU',
+      vram: '500 MB',
+      ram: '1 GB',
+      storage: '420 MB'
+    },
+    alternatives: ['qwen3', 'llama-3-2', 'deepseek-r1'],
+    rating: 5.0,
+    reviewCount: 320,
+    apiCallsCount: 1540000,
+    version: '1.0-demo',
+    releaseDate: 'February 2026',
+    updatedDate: 'February 2026',
+    artwork: 'from-amber-500/20 via-cyan-500/20 to-blue-600/30',
+    screenshots: [
+      'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&auto=format&fit=crop&q=80'
+    ],
+    trustScore: 98,
+    trustBreakdown: {
+      performance: 98,
+      community: 96,
+      documentation: 99,
+      reliability: 98,
+      creator: 99
+    },
+    benchmarks: [
+      { name: 'HumanEval (Pass@1)', score: 86.4 },
+      { name: 'GSM8K (Math)', score: 89.2 },
+      { name: 'MMLU', score: 84.8 },
+      { name: 'MBPP (Python)', score: 83.5 }
+    ],
+    wishlisted: false
+  },
+  {
     id: 'qwen3',
     name: 'Qwen3',
     provider: 'Alibaba Cloud',

@@ -1,4 +1,4 @@
-export type RuntimeType = 'ollama' | 'vllm' | 'docker' | 'custom';
+export type RuntimeType = 'ollama' | 'demo' | 'vllm' | 'docker' | 'custom';
 
 export interface RuntimeStatus {
   runtime: RuntimeType;

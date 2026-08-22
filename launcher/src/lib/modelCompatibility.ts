@@ -2,7 +2,7 @@ import type { Model } from '../types';
 
 export interface ModelRuntimeCompatibility {
   supported: boolean;
-  runtime: 'ollama' | 'modal' | 'hosted' | 'none';
+  runtime: 'ollama' | 'demo' | 'modal' | 'hosted' | 'none';
   ollamaTag: string;
   recommendedTag: string;
   availableTags: string[];
@@ -106,6 +106,19 @@ export function resolveModelRuntime(model?: Model | null): ModelRuntimeCompatibi
       recommendedTag: '',
       availableTags: [],
       reason: 'No model specified'
+    };
+  }
+
+  // 0. Demo runtime model (Hackathon Demo Mode)
+  if (model.id === 'qwen3-demo' || model.runtime === 'demo' || model.runtime_model_id === 'qwen3-demo') {
+    return {
+      supported: true,
+      runtime: 'demo',
+      ollamaTag: 'qwen3-demo',
+      recommendedTag: 'qwen3-demo',
+      availableTags: ['qwen3-demo'],
+      defaultVramRequirement: '500 MB',
+      defaultRamRequirement: '1 GB'
     };
   }
 

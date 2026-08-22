@@ -17,6 +17,8 @@ import { Community } from './components/Community';
 import { CreatorProfile } from './components/CreatorProfile';
 import { ToastStack, ModalsManager } from './components/ModalsAndToasts';
 import { AuthModal } from './components/AuthModal';
+import { OnboardingModal } from './components/OnboardingModal';
+import { AgoraAssistant } from './components/AgoraAssistant';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LauncherDownloadPage } from './components/LauncherDownloadPage';
 
@@ -87,10 +89,12 @@ const AppInner: React.FC = () => {
         {renderActiveView()}
       </main>
 
-      {/* Toast logs, modal overlay manager, and auth modal */}
+      {/* Toast logs, modal overlay manager, auth modal, onboarding popup, and AI Assistant */}
       <ToastStack />
       <ModalsManager />
       <AuthModal />
+      <OnboardingModal />
+      <AgoraAssistant />
     </div>
   );
 };

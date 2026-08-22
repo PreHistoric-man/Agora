@@ -2,7 +2,7 @@ import type { Model } from '../data/mockData';
 
 export interface ModelRuntimeCompatibility {
   supported: boolean;
-  runtime: 'ollama' | 'none';
+  runtime: 'ollama' | 'demo' | 'none';
   ollamaTag: string;
   recommendedTag: string;
   availableTags: string[];
@@ -21,6 +21,12 @@ const OLLAMA_MODEL_TAG_MAP: Record<
     ram?: string;
   }
 > = {
+  'qwen3-demo': {
+    tag: 'qwen3-demo',
+    availableTags: ['qwen3-demo'],
+    vram: '500 MB',
+    ram: '1 GB'
+  },
   'deepseek-r1': {
     tag: 'deepseek-r1:8b',
     availableTags: ['deepseek-r1:1.5b', 'deepseek-r1:7b', 'deepseek-r1:8b', 'deepseek-r1:14b', 'deepseek-r1:32b', 'deepseek-r1:70b'],
@@ -90,6 +96,19 @@ export function resolveModelRuntime(model?: Model | null): ModelRuntimeCompatibi
       recommendedTag: '',
       availableTags: [],
       reason: 'No model specified'
+    };
+  }
+
+  // 0. Demo runtime models (for Hackathon Demo Mode)
+  if (model.id === 'qwen3-demo' || model.runtime === 'demo' || model.runtime_model_id === 'qwen3-demo') {
+    return {
+      supported: true,
+      runtime: 'demo',
+      ollamaTag: 'qwen3-demo',
+      recommendedTag: 'qwen3-demo',
+      availableTags: ['qwen3-demo'],
+      defaultVramRequirement: '500 MB',
+      defaultRamRequirement: '1 GB'
     };
   }
 
