@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLauncher } from '../context/LauncherContext';
+import { useRuntime } from '../context/RuntimeContext';
 import { ModelLogo } from './ModelLogo';
 import {
   Layers,
@@ -10,6 +11,11 @@ import {
   Sparkles,
   ExternalLink,
   Plus,
+  Terminal,
+  Play,
+  CheckCircle2,
+  Cpu,
+  RotateCw,
 } from 'lucide-react';
 
 export const HomeView: React.FC = () => {
@@ -27,19 +33,25 @@ export const HomeView: React.FC = () => {
     isInLibrary,
   } = useLauncher();
 
+  const {
+    runtimeStatus,
+    installedModels,
+    runningModels,
+    activeModelTag,
+    setActiveModelTag,
+    refreshRuntime,
+  } = useRuntime();
+
   const userName = profile?.display_name || user?.email?.split('@')[0] || 'AI Engineer';
 
-  // Recently used / Library shelf models
   const userLibraryModels = libraryItems
     .filter((item) => item.model)
     .slice(0, 4);
 
-  // Active deployments
   const activeDeployments = deployments.filter(
     (d) => d.status === 'running' || d.status === 'deploying'
   );
 
-  // Featured models in store
   const featuredModels = models.slice(0, 4);
 
   return (
@@ -51,7 +63,7 @@ export const HomeView: React.FC = () => {
         <div className="relative z-10 space-y-4 max-w-2xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-xs font-semibold text-cyan-300">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Agora Desktop Hub</span>
+            <span>Agora Desktop Launcher</span>
           </div>
 
           <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
@@ -59,16 +71,24 @@ export const HomeView: React.FC = () => {
           </h1>
 
           <p className="text-sm text-slate-300 leading-relaxed">
-            Manage your AI model library, control unified cloud deployments, and discover frontier foundation models.
+            Manage your AI model library, run open-weights models locally on your GPU via Ollama, and test inference directly in the AI Playground.
           </p>
 
           <div className="pt-2 flex flex-wrap items-center gap-3">
             <button
-              onClick={() => setActiveView('library')}
+              onClick={() => setActiveView('playground')}
               className="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-cyan-500/20 flex items-center gap-2"
             >
+              <Terminal className="w-4 h-4" />
+              <span>Open AI Playground</span>
+            </button>
+
+            <button
+              onClick={() => setActiveView('library')}
+              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs border border-white/10 transition-all flex items-center gap-2"
+            >
               <Layers className="w-4 h-4" />
-              <span>Go to My Library ({libraryItems.length})</span>
+              <span>My Library ({libraryItems.length})</span>
             </button>
 
             <button
@@ -76,8 +96,120 @@ export const HomeView: React.FC = () => {
               className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs border border-white/10 transition-all flex items-center gap-2"
             >
               <ShoppingBag className="w-4 h-4" />
-              <span>Explore Model Store</span>
+              <span>Explore Store</span>
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Local AI Runtime Quick Status Banner */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Runtime Server Status */}
+        <div
+          onClick={() => setActiveView('settings')}
+          className="p-4 rounded-xl bg-slate-900/80 border border-white/10 hover:border-cyan-500/40 transition-all cursor-pointer space-y-2 flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Cpu className="w-3.5 h-3.5 text-cyan-400" /> Local Engine
+            </span>
+            <span
+              className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                runtimeStatus.state === 'online'
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                  : runtimeStatus.state === 'stopped'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                  : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  runtimeStatus.state === 'online' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'
+                }`}
+              />
+              Ollama {runtimeStatus.state}
+            </span>
+          </div>
+          <div>
+            <div className="text-sm font-bold text-white">
+              {runtimeStatus.state === 'online'
+                ? `Ollama v${runtimeStatus.version || '0.5.x'}`
+                : 'Ollama Offline'}
+            </div>
+            <p className="text-xs text-slate-400 font-mono mt-0.5">{runtimeStatus.endpoint}</p>
+          </div>
+          <div className="text-[11px] text-cyan-400 flex items-center gap-1 font-semibold pt-1">
+            <span>Configure runtime</span>
+            <ArrowRight className="w-3 h-3" />
+          </div>
+        </div>
+
+        {/* Installed Models Card */}
+        <div
+          onClick={() => setActiveView('library')}
+          className="p-4 rounded-xl bg-slate-900/80 border border-white/10 hover:border-cyan-500/40 transition-all cursor-pointer space-y-2 flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-cyan-400" /> Local Models
+            </span>
+            <span className="text-xs font-mono font-bold text-cyan-300">
+              {installedModels.length} Installed
+            </span>
+          </div>
+          <div>
+            <div className="text-sm font-bold text-white">
+              {installedModels.length > 0
+                ? `${installedModels.length} models ready for GPU inference`
+                : 'No weights installed'}
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {installedModels.length > 0
+                ? installedModels.slice(0, 2).map((m) => m.name).join(', ')
+                : 'Download open-weights models in Library'}
+            </p>
+          </div>
+          <div className="text-[11px] text-cyan-400 flex items-center gap-1 font-semibold pt-1">
+            <span>Manage local models</span>
+            <ArrowRight className="w-3 h-3" />
+          </div>
+        </div>
+
+        {/* Running Model / Playground Card */}
+        <div
+          onClick={() => setActiveView('playground')}
+          className="p-4 rounded-xl bg-slate-900/80 border border-white/10 hover:border-cyan-500/40 transition-all cursor-pointer space-y-2 flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Terminal className="w-3.5 h-3.5 text-cyan-400" /> AI Playground
+            </span>
+            {runningModels.length > 0 ? (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Active
+              </span>
+            ) : (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-white/5">
+                Idle
+              </span>
+            )}
+          </div>
+          <div>
+            <div className="text-sm font-bold text-white">
+              {runningModels.length > 0
+                ? runningModels[0].name || runningModels[0].model
+                : 'Direct Local Chat'}
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {runningModels.length > 0
+                ? 'Streaming tokens directly from local memory'
+                : 'Interactive prompt test bench with live token streaming'}
+            </p>
+          </div>
+          <div className="text-[11px] text-cyan-400 flex items-center gap-1 font-semibold pt-1">
+            <span>Launch Playground</span>
+            <ArrowRight className="w-3 h-3" />
           </div>
         </div>
       </div>
@@ -100,7 +232,7 @@ export const HomeView: React.FC = () => {
         </div>
       )}
 
-      {/* Section 1: Your Library / Recently Added */}
+      {/* Section 1: Your Library */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -201,7 +333,7 @@ export const HomeView: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Rocket className="w-4 h-4 text-violet-400" />
-            <h2 className="text-base font-bold text-white tracking-wide">Active Deployments</h2>
+            <h2 className="text-base font-bold text-white tracking-wide">Cloud Deployments</h2>
           </div>
           <button
             onClick={() => setActiveView('deployments')}
@@ -221,8 +353,8 @@ export const HomeView: React.FC = () => {
         ) : activeDeployments.length === 0 ? (
           <div className="p-6 rounded-xl bg-slate-900/30 border border-white/5 flex items-center justify-between flex-wrap gap-4">
             <div className="space-y-1">
-              <div className="text-xs font-bold text-slate-300">No active deployments registered</div>
-              <p className="text-xs text-slate-400">Deploy model endpoints via Agora web or configure custom cloud instances.</p>
+              <div className="text-xs font-bold text-slate-300">No active cloud endpoints registered</div>
+              <p className="text-xs text-slate-400">Deploy model endpoints via Agora web or configure dedicated instances.</p>
             </div>
             <button
               onClick={() => setActiveView('deployments')}

@@ -1,10 +1,12 @@
 import React from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { LauncherProvider, useLauncher } from './context/LauncherContext';
+import { RuntimeProvider } from './context/RuntimeContext';
 import { TitleBar } from './components/TitleBar';
 import { Sidebar } from './components/Sidebar';
 import { HomeView } from './components/HomeView';
 import { LibraryView } from './components/LibraryView';
+import { PlaygroundView } from './components/PlaygroundView';
 import { StoreView } from './components/StoreView';
 import { DeploymentsView } from './components/DeploymentsView';
 import { SettingsView } from './components/SettingsView';
@@ -21,6 +23,8 @@ const MainContent: React.FC = () => {
         return <HomeView />;
       case 'library':
         return <LibraryView />;
+      case 'playground':
+        return <PlaygroundView />;
       case 'store':
         return <StoreView />;
       case 'deployments':
@@ -43,21 +47,23 @@ export const App: React.FC = () => {
   return (
     <AuthProvider>
       <LauncherProvider>
-        <div className="flex flex-col w-screen h-screen overflow-hidden bg-slate-950 text-slate-100 font-sans antialiased">
-          {/* Custom Window TitleBar */}
-          <TitleBar />
+        <RuntimeProvider>
+          <div className="flex flex-col w-screen h-screen overflow-hidden bg-slate-950 text-slate-100 font-sans antialiased">
+            {/* Custom Window TitleBar */}
+            <TitleBar />
 
-          {/* Desktop Shell: Sidebar + Content */}
-          <div className="flex flex-1 overflow-hidden">
-            <Sidebar />
-            <MainContent />
+            {/* Desktop Shell: Sidebar + Content */}
+            <div className="flex flex-1 overflow-hidden">
+              <Sidebar />
+              <MainContent />
+            </div>
+
+            {/* Overlays & Dialogs */}
+            <ModelDetailModal />
+            <AuthModal />
+            <Toast />
           </div>
-
-          {/* Overlays & Dialogs */}
-          <ModelDetailModal />
-          <AuthModal />
-          <Toast />
-        </div>
+        </RuntimeProvider>
       </LauncherProvider>
     </AuthProvider>
   );

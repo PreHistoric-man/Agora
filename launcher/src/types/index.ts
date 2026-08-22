@@ -71,4 +71,6 @@ export interface UserProfile {
   created_at?: string;
 }
 
-export type LauncherView = 'home' | 'library' | 'deployments' | 'store' | 'settings';
+export type LauncherView = 'home' | 'library' | 'playground' | 'deployments' | 'store' | 'settings';
+
+export * from './runtime';

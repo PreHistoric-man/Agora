@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useLauncher } from '../context/LauncherContext';
+import { useRuntime } from '../context/RuntimeContext';
+import { resolveModelRuntime } from '../lib/modelCompatibility';
 import { ModelLogo } from './ModelLogo';
 import {
   X,
@@ -12,6 +14,11 @@ import {
   Sparkles,
   ShieldCheck,
   Zap,
+  Play,
+  Download,
+  RotateCw,
+  Cpu,
+  HardDrive,
 } from 'lucide-react';
 
 export const ModelDetailModal: React.FC = () => {
@@ -22,15 +29,33 @@ export const ModelDetailModal: React.FC = () => {
     addToLibrary,
     removeFromLibrary,
     isInLibrary,
+    setActiveView,
     showToast,
   } = useLauncher();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'api' | 'benchmarks'>('overview');
+  const {
+    runtimeStatus,
+    isModelInstalled,
+    isModelRunning,
+    isPulling,
+    pullProgress,
+    installModel,
+    startModel,
+    setActiveModelTag,
+  } = useRuntime();
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'runtime' | 'api' | 'benchmarks'>('overview');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   if (!isDetailOpen || !selectedModel) return null;
 
   const inLibrary = isInLibrary(selectedModel.id);
+  const runtimeComp = resolveModelRuntime(selectedModel);
+  const ollamaTag = runtimeComp.ollamaTag;
+  const isInstalled = runtimeComp.supported && isModelInstalled(ollamaTag);
+  const isRunning = runtimeComp.supported && isModelRunning(ollamaTag);
+  const pulling = runtimeComp.supported && isPulling(ollamaTag);
+  const progress = pulling ? pullProgress[ollamaTag.toLowerCase()] : undefined;
 
   const copyCode = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -39,32 +64,38 @@ export const ModelDetailModal: React.FC = () => {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
+  const handleLaunchAndPlay = async () => {
+    setActiveModelTag(ollamaTag);
+    if (!isRunning) {
+      showToast(`Loading ${ollamaTag} into memory...`, 'info');
+      const started = await startModel(ollamaTag);
+      if (!started) {
+        showToast(`Failed to launch ${ollamaTag}`, 'error');
+        return;
+      }
+    }
+    closeModelDetail();
+    setActiveView('playground');
+  };
+
   const curlExample =
     selectedModel.sampleCurl ||
-    `curl https://api.agora.ai/v1/chat/completions \\
+    `curl http://127.0.0.1:11434/api/chat \\
   -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer $AGORA_API_KEY" \\
   -d '{
-    "model": "${selectedModel.id}",
-    "messages": [{"role": "user", "content": "Explain quantum computing in simple terms."}],
-    "temperature": 0.7
+    "model": "${ollamaTag || selectedModel.id}",
+    "messages": [{"role": "user", "content": "Explain quantum computing in simple terms."}]
   }'`;
 
   const pythonExample =
     selectedModel.samplePython ||
-    `from openai import OpenAI
+    `import requests
 
-client = OpenAI(
-    base_url="https://api.agora.ai/v1",
-    api_key="your_agora_api_key"
+response = requests.post(
+    "http://127.0.0.1:11434/api/generate",
+    json={"model": "${ollamaTag || selectedModel.id}", "prompt": "Hello world!"}
 )
-
-response = client.chat.completions.create(
-    model="${selectedModel.id}",
-    messages=[{"role": "user", "content": "Hello, world!"}]
-)
-
-print(response.choices[0].message.content)`;
+print(response.json())`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in select-none">
@@ -114,6 +145,18 @@ print(response.choices[0].message.content)`;
           >
             Overview
           </button>
+          {runtimeComp.supported && (
+            <button
+              onClick={() => setActiveTab('runtime')}
+              className={`px-3 py-2 text-xs font-semibold border-b-2 transition-all ${
+                activeTab === 'runtime'
+                  ? 'border-cyan-400 text-cyan-300'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Local Execution (Ollama)
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('api')}
             className={`px-3 py-2 text-xs font-semibold border-b-2 transition-all ${
@@ -163,7 +206,7 @@ print(response.choices[0].message.content)`;
                     <span className="text-slate-500 text-[10px]">Token Pricing</span>
                     <p className="text-cyan-300 font-bold mt-0.5">
                       {selectedModel.inputPricePerMillion === 0
-                        ? 'Free'
+                        ? 'Free / Self-Host'
                         : `$${selectedModel.inputPricePerMillion}/M`}
                     </p>
                   </div>
@@ -193,6 +236,89 @@ print(response.choices[0].message.content)`;
             </div>
           )}
 
+          {activeTab === 'runtime' && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-slate-950/80 border border-white/10 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Cpu className="w-4 h-4 text-cyan-400" />
+                    <span className="font-bold text-white text-sm">Ollama Local Deployment</span>
+                  </div>
+                  {isRunning ? (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      🟢 Running on GPU
+                    </span>
+                  ) : isInstalled ? (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                      ✓ Installed Locally
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">
+                      Available for Download
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 font-mono text-[11px] pt-1">
+                  <div className="bg-slate-900 p-2.5 rounded-lg border border-white/5">
+                    <span className="text-slate-500 text-[10px] block">Ollama Tag</span>
+                    <span className="text-cyan-300 font-bold">{ollamaTag}</span>
+                  </div>
+                  <div className="bg-slate-900 p-2.5 rounded-lg border border-white/5">
+                    <span className="text-slate-500 text-[10px] block">Recommended VRAM</span>
+                    <span className="text-slate-200">{runtimeComp.defaultVramRequirement || '8 GB'}</span>
+                  </div>
+                  <div className="bg-slate-900 p-2.5 rounded-lg border border-white/5">
+                    <span className="text-slate-500 text-[10px] block">System RAM</span>
+                    <span className="text-slate-200">{runtimeComp.defaultRamRequirement || '16 GB'}</span>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex items-center gap-3">
+                  {isRunning ? (
+                    <button
+                      onClick={handleLaunchAndPlay}
+                      className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition-all shadow-md shadow-cyan-500/20 flex items-center gap-2"
+                    >
+                      <Terminal className="w-4 h-4" />
+                      <span>Open AI Playground</span>
+                    </button>
+                  ) : isInstalled ? (
+                    <button
+                      onClick={handleLaunchAndPlay}
+                      className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition-all shadow-md shadow-emerald-500/20 flex items-center gap-2"
+                    >
+                      <Play className="w-4 h-4 fill-current" />
+                      <span>Launch Model & Chat</span>
+                    </button>
+                  ) : pulling ? (
+                    <div className="flex items-center gap-2 text-amber-300 font-medium">
+                      <RotateCw className="w-4 h-4 animate-spin" />
+                      <span>Downloading model ({progress?.percent || 0}%)...</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => installModel(ollamaTag)}
+                      className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition-all shadow-md shadow-cyan-500/20 flex items-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Download Model ({ollamaTag})</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <span className="font-semibold text-slate-300 flex items-center gap-1.5">
+                  <Terminal className="w-3.5 h-3.5 text-cyan-400" /> CLI Command
+                </span>
+                <pre className="p-3.5 rounded-xl bg-slate-950 border border-white/10 font-mono text-[11px] text-cyan-300">
+                  ollama run {ollamaTag}
+                </pre>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'api' && (
             <div className="space-y-4">
               <div className="space-y-2">
@@ -216,7 +342,7 @@ print(response.choices[0].message.content)`;
               <div className="space-y-2 pt-2">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-slate-300 flex items-center gap-1.5">
-                    <Terminal className="w-3.5 h-3.5 text-violet-400" /> Python SDK
+                    <Terminal className="w-3.5 h-3.5 text-violet-400" /> Python Request
                   </span>
                   <button
                     onClick={() => copyCode(pythonExample, 'python')}
