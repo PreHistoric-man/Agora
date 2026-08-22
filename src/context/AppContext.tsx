@@ -10,6 +10,7 @@ import type {
   Model,
   Creator,
   CommunityPost,
+  CommunityComment,
   WorkshopItem
 } from '../data/mockData';
 import { ModelService } from '../services/ModelService';
@@ -19,6 +20,9 @@ import { awsConnectionService } from '../services/AwsConnectionService';
 import type { LibraryItem, DeploymentStatus } from '../types/library';
 import type { Deployment, DeploymentDraft } from '../types/deployment';
 import type { AwsConnection, VerifyAwsRoleResponse } from '../types/aws';
+import type { ModelSubmission, CreatorOverviewStats } from '../types/submission';
+import { SubmissionService } from '../services/SubmissionService';
+import { CreatorService } from '../services/CreatorService';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 
 export type ViewType =
@@ -35,7 +39,9 @@ export type ViewType =
   | 'community'
   | 'creator'
   | 'wishlist'
-  | 'launcher';
+  | 'launcher'
+  | 'developer'
+  | 'admin';
 
 export interface Toast {
   id: string;
@@ -191,7 +197,23 @@ interface AppContextType {
   toggleFollowCreator: (creatorId: string) => void;
   toggleSubscribeWorkshop: (itemId: string) => void;
   addCommunityPost: (modelId: string, modelName: string, category: CommunityPost['category'], title: string, content: string) => void;
+  voteCommunityPost: (postId: string, voteType: 'like' | 'dislike') => void;
+  addPostComment: (postId: string, content: string) => void;
+  votePostComment: (postId: string, commentId: string, voteType: 'like' | 'dislike') => void;
   markNotificationsRead: () => void;
+
+  // Developer & Creator Platform (Phase 1)
+  creatorSubmissions: ModelSubmission[];
+  submissionsLoading: boolean;
+  developerTab: 'dashboard' | 'models' | 'new-model' | 'submissions' | 'profile';
+  setDeveloperTab: (tab: 'dashboard' | 'models' | 'new-model' | 'submissions' | 'profile') => void;
+  editingSubmissionId: string | null;
+  setEditingSubmissionId: (id: string | null) => void;
+  refreshSubmissions: () => Promise<void>;
+  showBecomeCreatorModal: boolean;
+  openBecomeCreatorModal: () => void;
+  closeBecomeCreatorModal: () => void;
+  handleSubmissionPublished: (submission: ModelSubmission) => Promise<void>;
 
   // First Visit Onboarding Tutorial
   isOnboardingOpen: boolean;
@@ -260,6 +282,15 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       if (pathname === '/launcher' || pathname === '/launcher/' || hash === '#launcher' || hash === '#/launcher') {
         return 'launcher';
       }
+      if (pathname === '/developer' || pathname === '/developer/' || hash === '#developer') {
+        return 'developer';
+      }
+      if (pathname === '/admin' || pathname === '/admin/' || hash === '#admin') {
+        return 'admin';
+      }
+      if (pathname.startsWith('/creator') || hash.startsWith('#creator')) {
+        return 'creator';
+      }
     } catch {}
     return 'store';
   });
@@ -281,11 +312,38 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   }, []);
   const [selectedModelId, setSelectedModelId] = useState<string>('deepseek-r1');
-  const [selectedCreatorId, setSelectedCreatorId] = useState<string>('c3');
+  const [selectedCreatorId, setSelectedCreatorId] = useState<string>('c1');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [followedCreatorIds, setFollowedCreatorIds] = useState<string[]>(['c2', 'c3']);
+  const [followedCreatorIds, setFollowedCreatorIds] = useState<string[]>(['c1', 'c2', 'c3']);
+
+  // Developer / Creator Platform State (Phase 1)
+  const [creatorSubmissions, setCreatorSubmissions] = useState<ModelSubmission[]>([]);
+  const [submissionsLoading, setSubmissionsLoading] = useState<boolean>(false);
+  const [developerTab, setDeveloperTab] = useState<'dashboard' | 'models' | 'new-model' | 'submissions' | 'profile'>('dashboard');
+  const [editingSubmissionId, setEditingSubmissionId] = useState<string | null>(null);
+  const [showBecomeCreatorModal, setShowBecomeCreatorModal] = useState<boolean>(false);
+
+  const openBecomeCreatorModal = useCallback(() => setShowBecomeCreatorModal(true), []);
+  const closeBecomeCreatorModal = useCallback(() => setShowBecomeCreatorModal(false), []);
+
+  const refreshSubmissions = useCallback(async () => {
+    setSubmissionsLoading(true);
+    try {
+      const creatorId = user ? user.id : 'c1';
+      const items = await SubmissionService.getCreatorSubmissions(creatorId);
+      setCreatorSubmissions(items);
+    } catch (e) {
+      console.warn('Error refreshing creator submissions:', e);
+    } finally {
+      setSubmissionsLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    refreshSubmissions();
+  }, [refreshSubmissions]);
 
   // Onboarding modal state (first visit check from localStorage)
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
@@ -384,7 +442,15 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         if (window.location.pathname !== '/launcher') {
           window.history.pushState({ view: 'launcher' }, '', '/launcher');
         }
-      } else if (window.location.pathname === '/launcher') {
+      } else if (view === 'developer') {
+        if (window.location.pathname !== '/developer') {
+          window.history.pushState({ view: 'developer' }, '', '/developer');
+        }
+      } else if (view === 'admin') {
+        if (window.location.pathname !== '/admin') {
+          window.history.pushState({ view: 'admin' }, '', '/admin');
+        }
+      } else if (window.location.pathname === '/launcher' || window.location.pathname === '/developer' || window.location.pathname === '/admin') {
         window.history.pushState({ view }, '', '/');
       }
     } catch {}
@@ -398,6 +464,10 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const hash = window.location.hash.toLowerCase();
         if (pathname === '/launcher' || pathname === '/launcher/' || hash === '#launcher' || hash === '#/launcher') {
           setViewInternal('launcher');
+        } else if (pathname === '/developer' || pathname === '/developer/' || hash === '#developer') {
+          setViewInternal('developer');
+        } else if (pathname === '/admin' || pathname === '/admin/' || hash === '#admin') {
+          setViewInternal('admin');
         } else if (pathname === '/' || pathname === '') {
           setViewInternal('store');
         }
@@ -406,6 +476,12 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  const handleSubmissionPublished = useCallback(async (submission: ModelSubmission) => {
+    await refreshModels();
+    await refreshSubmissions();
+    addToast(`"${submission.name}" is now live on the Agora Marketplace!`, 'success');
+  }, [refreshModels, refreshSubmissions, addToast]);
 
   // User Library State (Steam-Style Supabase Persistence)
   const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
@@ -1119,11 +1195,114 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       authorAvatar: '🛸',
       replies: 0,
       likes: 1,
+      dislikes: 0,
+      userVote: 'like',
       timeAgo: 'Just now',
-      category
+      category,
+      comments: []
     };
     setPosts((prev) => [newPost, ...prev]);
     addToast('Post published to Agora developer community!', 'success');
+  };
+
+  const voteCommunityPost = (postId: string, voteType: 'like' | 'dislike') => {
+    setPosts((prev) =>
+      prev.map((post) => {
+        if (post.id !== postId) return post;
+        const currentVote = post.userVote;
+        let newLikes = post.likes;
+        let newDislikes = post.dislikes || 0;
+        let newVote: 'like' | 'dislike' | null = voteType;
+
+        if (currentVote === voteType) {
+          // Toggle off
+          newVote = null;
+          if (voteType === 'like') newLikes = Math.max(0, newLikes - 1);
+          if (voteType === 'dislike') newDislikes = Math.max(0, newDislikes - 1);
+        } else {
+          // If changing from opposite vote
+          if (currentVote === 'like') newLikes = Math.max(0, newLikes - 1);
+          if (currentVote === 'dislike') newDislikes = Math.max(0, newDislikes - 1);
+
+          if (voteType === 'like') newLikes += 1;
+          if (voteType === 'dislike') newDislikes += 1;
+        }
+
+        return {
+          ...post,
+          likes: newLikes,
+          dislikes: newDislikes,
+          userVote: newVote
+        };
+      })
+    );
+  };
+
+  const addPostComment = (postId: string, content: string) => {
+    if (!content.trim()) return;
+    const newComment: CommunityComment = {
+      id: `comment-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      postId,
+      author: user?.email?.split('@')[0] || 'AI Developer',
+      authorAvatar: '💬',
+      content: content.trim(),
+      timeAgo: 'Just now',
+      likes: 0,
+      dislikes: 0,
+      userVote: null
+    };
+
+    setPosts((prev) =>
+      prev.map((post) => {
+        if (post.id !== postId) return post;
+        const updatedComments = [...(post.comments || []), newComment];
+        return {
+          ...post,
+          replies: updatedComments.length,
+          comments: updatedComments
+        };
+      })
+    );
+    addToast('Comment added to discussion!', 'success');
+  };
+
+  const votePostComment = (postId: string, commentId: string, voteType: 'like' | 'dislike') => {
+    setPosts((prev) =>
+      prev.map((post) => {
+        if (post.id !== postId) return post;
+        const updatedComments = (post.comments || []).map((c) => {
+          if (c.id !== commentId) return c;
+          const currentVote = c.userVote;
+          let newLikes = c.likes;
+          let newDislikes = c.dislikes || 0;
+          let newVote: 'like' | 'dislike' | null = voteType;
+
+          if (currentVote === voteType) {
+            newVote = null;
+            if (voteType === 'like') newLikes = Math.max(0, newLikes - 1);
+            if (voteType === 'dislike') newDislikes = Math.max(0, newDislikes - 1);
+          } else {
+            if (currentVote === 'like') newLikes = Math.max(0, newLikes - 1);
+            if (currentVote === 'dislike') newDislikes = Math.max(0, newDislikes - 1);
+
+            if (voteType === 'like') newLikes += 1;
+            if (voteType === 'dislike') newDislikes += 1;
+          }
+
+          return {
+            ...c,
+            likes: newLikes,
+            dislikes: newDislikes,
+            userVote: newVote
+          };
+        });
+
+        return {
+          ...post,
+          comments: updatedComments
+        };
+      })
+    );
   };
 
   const markNotificationsRead = () => {
@@ -1223,7 +1402,23 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         toggleFollowCreator,
         toggleSubscribeWorkshop,
         addCommunityPost,
+        voteCommunityPost,
+        addPostComment,
+        votePostComment,
         markNotificationsRead,
+
+        // Developer & Creator Platform (Phase 1)
+        creatorSubmissions,
+        submissionsLoading,
+        developerTab,
+        setDeveloperTab,
+        editingSubmissionId,
+        setEditingSubmissionId,
+        refreshSubmissions,
+        showBecomeCreatorModal,
+        openBecomeCreatorModal,
+        closeBecomeCreatorModal,
+        handleSubmissionPublished,
 
         // Onboarding Tutorial
         isOnboardingOpen,

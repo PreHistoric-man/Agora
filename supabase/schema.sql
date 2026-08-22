@@ -8,7 +8,14 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   username TEXT UNIQUE,
   display_name TEXT,
   avatar_url TEXT DEFAULT '🛸',
+  role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'creator', 'admin')),
+  creator_status TEXT NOT NULL DEFAULT 'not_creator' CHECK (creator_status IN ('not_creator', 'pending', 'approved', 'rejected')),
   is_creator BOOLEAN DEFAULT false,
+  bio TEXT,
+  website_url TEXT,
+  github_url TEXT,
+  verified BOOLEAN DEFAULT false,
+  creator_applied_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
@@ -414,5 +421,232 @@ ON CONFLICT (id) DO UPDATE SET
   runtime = EXCLUDED.runtime,
   runtime_model_id = EXCLUDED.runtime_model_id,
   updated_at = NOW();
+
+-- ==========================================================
+-- 10. Creator Applications Table (Phase 1 Creator Access)
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS public.creator_applications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  username TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  avatar_url TEXT DEFAULT '🛸',
+  bio TEXT NOT NULL,
+  portfolio_url TEXT,
+  github_url TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  admin_notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  reviewed_at TIMESTAMPTZ,
+  reviewed_by UUID REFERENCES auth.users(id),
+  updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_creator_apps_user_id ON public.creator_applications (user_id);
+CREATE INDEX IF NOT EXISTS idx_creator_apps_status ON public.creator_applications (status);
+
+ALTER TABLE public.creator_applications ENABLE ROW LEVEL SECURITY;
+
+-- Users can view their own applications
+CREATE POLICY "Users can view own creator applications"
+  ON public.creator_applications
+  FOR SELECT
+  USING (auth.uid() = user_id OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+-- Authenticated users can insert an application
+CREATE POLICY "Users can insert own creator application"
+  ON public.creator_applications
+  FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+-- Admins can update creator applications (approve/reject)
+CREATE POLICY "Admins can update creator applications"
+  ON public.creator_applications
+  FOR UPDATE
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+-- ==========================================================
+-- 11. Model Submissions Table (Phase 1 Creator Model Workflow)
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS public.model_submissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL,
+  description TEXT NOT NULL,
+  long_description TEXT,
+  category TEXT NOT NULL DEFAULT 'Reasoning' CHECK (category IN ('Reasoning', 'Coding', 'Image', 'Video', 'Audio', 'Vision', 'Writing', 'Agents', 'Speech', 'Science')),
+  tags TEXT[] DEFAULT ARRAY['AI'],
+  version TEXT NOT NULL DEFAULT '1.0.0',
+  license TEXT NOT NULL DEFAULT 'Apache 2.0',
+  model_size TEXT,
+  parameters TEXT,
+  runtime TEXT NOT NULL DEFAULT 'ollama',
+  runtime_model_id TEXT,
+  source_url TEXT NOT NULL,
+  thumbnail_url TEXT,
+  banner_url TEXT,
+  deployable BOOLEAN DEFAULT true,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'pending_review', 'approved', 'rejected', 'published', 'unpublished')),
+  admin_notes TEXT,
+  published_model_id TEXT REFERENCES public.models(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  submitted_at TIMESTAMPTZ,
+  reviewed_at TIMESTAMPTZ,
+  reviewed_by UUID REFERENCES auth.users(id),
+  published_at TIMESTAMPTZ,
+  CONSTRAINT unique_creator_submission_slug UNIQUE (creator_id, slug)
+);
+
+CREATE INDEX IF NOT EXISTS idx_model_submissions_creator ON public.model_submissions (creator_id);
+CREATE INDEX IF NOT EXISTS idx_model_submissions_status ON public.model_submissions (status);
+CREATE INDEX IF NOT EXISTS idx_model_submissions_slug ON public.model_submissions (slug);
+
+ALTER TABLE public.model_submissions ENABLE ROW LEVEL SECURITY;
+
+-- SELECT: Creators can see their own submissions; Admins can see all submissions
+CREATE POLICY "Creators see own submissions, admins see all"
+  ON public.model_submissions
+  FOR SELECT
+  USING (
+    auth.uid() = creator_id
+    OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- INSERT: Authenticated creators/admins can insert submissions for their own creator_id
+CREATE POLICY "Creators can insert own submissions"
+  ON public.model_submissions
+  FOR INSERT
+  WITH CHECK (
+    auth.uid() = creator_id
+    AND (
+      EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (is_creator = true OR role IN ('creator', 'admin')))
+    )
+  );
+
+-- UPDATE:
+-- Creators can update their own submissions ONLY when in 'draft' or 'rejected' status (or publish when 'approved')
+-- Admins can update any submission (to approve, reject, or comment)
+CREATE POLICY "Creators can update own drafts and rejected submissions"
+  ON public.model_submissions
+  FOR UPDATE
+  USING (
+    (auth.uid() = creator_id AND status IN ('draft', 'rejected', 'approved'))
+    OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  )
+  WITH CHECK (
+    (auth.uid() = creator_id AND status IN ('draft', 'pending_review', 'published', 'unpublished'))
+    OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- DELETE: Creators can only delete their own drafts
+CREATE POLICY "Creators can delete own drafts"
+  ON public.model_submissions
+  FOR DELETE
+  USING (
+    auth.uid() = creator_id AND status = 'draft'
+    OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- Trigger for auto updated_at on model_submissions
+DROP TRIGGER IF EXISTS handle_model_submissions_updated_at ON public.model_submissions;
+CREATE TRIGGER handle_model_submissions_updated_at
+  BEFORE UPDATE ON public.model_submissions
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+-- Auto-sync approved/published submissions to public models table
+CREATE OR REPLACE FUNCTION public.sync_published_submission_to_models()
+RETURNS TRIGGER AS $$
+DECLARE
+  creator_profile RECORD;
+  model_id_val TEXT;
+BEGIN
+  IF NEW.status = 'published' AND (OLD.status IS DISTINCT FROM 'published') THEN
+    SELECT * INTO creator_profile FROM public.profiles WHERE id = NEW.creator_id;
+    model_id_val := COALESCE(NEW.published_model_id, NEW.slug);
+
+    INSERT INTO public.models (
+      id,
+      name,
+      provider,
+      provider_logo,
+      creator_id,
+      creator,
+      description,
+      long_description,
+      category,
+      tags,
+      parameters,
+      model_size,
+      version,
+      license,
+      runtime,
+      runtime_model_id,
+      endpoint,
+      thumbnail_url,
+      banner_url,
+      deployable,
+      is_open_source,
+      overall_score,
+      rating,
+      created_at,
+      updated_at
+    ) VALUES (
+      model_id_val,
+      NEW.name,
+      COALESCE(creator_profile.display_name, 'Agora Creator'),
+      COALESCE(creator_profile.avatar_url, '⚡'),
+      NEW.creator_id::text,
+      COALESCE(creator_profile.display_name, 'Agora Creator'),
+      NEW.description,
+      COALESCE(NEW.long_description, NEW.description),
+      NEW.category,
+      NEW.tags,
+      COALESCE(NEW.parameters, 'Foundation Weights'),
+      NEW.model_size,
+      NEW.version,
+      NEW.license,
+      NEW.runtime,
+      NEW.runtime_model_id,
+      NEW.source_url,
+      NEW.thumbnail_url,
+      NEW.banner_url,
+      NEW.deployable,
+      true,
+      95.0,
+      5.0,
+      NOW(),
+      NOW()
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      name = EXCLUDED.name,
+      description = EXCLUDED.description,
+      long_description = EXCLUDED.long_description,
+      category = EXCLUDED.category,
+      tags = EXCLUDED.tags,
+      version = EXCLUDED.version,
+      license = EXCLUDED.license,
+      runtime = EXCLUDED.runtime,
+      runtime_model_id = EXCLUDED.runtime_model_id,
+      thumbnail_url = EXCLUDED.thumbnail_url,
+      banner_url = EXCLUDED.banner_url,
+      updated_at = NOW();
+
+    NEW.published_model_id := model_id_val;
+    NEW.published_at := NOW();
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trigger_sync_published_submission ON public.model_submissions;
+CREATE TRIGGER trigger_sync_published_submission
+  BEFORE UPDATE ON public.model_submissions
+  FOR EACH ROW EXECUTE FUNCTION public.sync_published_submission_to_models();
+
 
 

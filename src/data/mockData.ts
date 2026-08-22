@@ -115,6 +115,18 @@ export interface Creator {
   earnings: string;
 }
 
+export interface CommunityComment {
+  id: string;
+  postId: string;
+  author: string;
+  authorAvatar: string;
+  content: string;
+  timeAgo: string;
+  likes: number;
+  dislikes: number;
+  userVote?: 'like' | 'dislike' | null;
+}
+
 export interface CommunityPost {
   id: string;
   modelId: string;
@@ -125,9 +137,12 @@ export interface CommunityPost {
   authorAvatar: string;
   replies: number;
   likes: number;
+  dislikes: number;
+  userVote?: 'like' | 'dislike' | null;
   timeAgo: string;
   category: 'Discussions' | 'Creations' | 'Guides' | 'Screenshots' | 'Reviews';
   imageUrl?: string;
+  comments: CommunityComment[];
 }
 
 export interface WorkshopItem {
@@ -1738,46 +1753,247 @@ export const MODEL_TAG_GROUPS: Record<string, string[]> = {
   ]
 };
 
-// 12 Mock Community Posts discussing API integration, benchmark comparisons & latency
+// 10 Mock Community Posts discussing API integration, benchmark comparisons & latency
 export const mockCommunityPosts: CommunityPost[] = [
   {
     id: 'post-1',
     modelId: 'deepseek-r1',
     modelName: 'DeepSeek-R1',
     title: 'Benchmarking DeepSeek-R1 vs Claude 3.5 Sonnet on 500 hard algorithm problems',
-    content: 'We ran both models through our proprietary SWE test suite. DeepSeek-R1 solved 91.4% of competitive math proofs at 1/20th the token cost of frontier closed APIs. The reasoning chain is crystal clear.',
+    content: 'We ran both models through our proprietary SWE test suite. DeepSeek-R1 solved 91.4% of competitive math proofs at 1/20th the token cost of frontier closed APIs. The reasoning chain is crystal clear and token consumption was minimal.',
     author: 'Elena Rostova',
     authorAvatar: '👩‍💻',
-    replies: 142,
+    replies: 3,
     likes: 890,
+    dislikes: 18,
+    userVote: null,
     timeAgo: '2 hours ago',
-    category: 'Discussions'
+    category: 'Discussions',
+    comments: [
+      {
+        id: 'c1-1',
+        postId: 'post-1',
+        author: 'Alexandre Meyer',
+        authorAvatar: '🔬',
+        content: 'Did you notice any reasoning loops on the graph-theory proofs? In our tests, setting temperature to 0.6 eliminated ~80% of repetitive reasoning tokens.',
+        timeAgo: '1 hour ago',
+        likes: 34,
+        dislikes: 1,
+        userVote: null
+      },
+      {
+        id: 'c1-2',
+        postId: 'post-1',
+        author: 'Elena Rostova',
+        authorAvatar: '👩‍💻',
+        content: 'Spot on Alexandre. We kept temperature at 0.55 with top_p at 0.95 and that kept the reasoning strictly convergent.',
+        timeAgo: '45 mins ago',
+        likes: 19,
+        dislikes: 0,
+        userVote: null
+      },
+      {
+        id: 'c1-3',
+        postId: 'post-1',
+        author: 'DevKavya',
+        authorAvatar: '⚡',
+        content: 'The cost difference alone is astonishing for batch unit test generation. Deployed this to our AWS EC2 g4dn instance via Agora Launcher seamlessly.',
+        timeAgo: '20 mins ago',
+        likes: 12,
+        dislikes: 0,
+        userVote: null
+      }
+    ]
   },
   {
     id: 'post-2',
     modelId: 'qwen-2-5-coder-32b',
     modelName: 'Qwen 2.5 Coder 32B',
-    title: 'How we set up a 135 tok/s code completion API gateway using ModalHub',
-    content: 'Complete tutorial on integrating Qwen 2.5 Coder via the OpenAI-compatible endpoint in VS Code Continue and Cursor. Latency dropped to 19ms TTFT!',
+    title: 'How we set up a 135 tok/s code completion API gateway using Agora',
+    content: 'Complete tutorial on integrating Qwen 2.5 Coder via the OpenAI-compatible endpoint in VS Code Continue and Cursor. Latency dropped to 19ms TTFT on AWS g4dn.xlarge instances!',
     author: 'Marcus Chen',
     authorAvatar: '⚡',
-    replies: 88,
+    replies: 2,
     likes: 620,
+    dislikes: 8,
+    userVote: null,
     timeAgo: '5 hours ago',
-    category: 'Guides'
+    category: 'Guides',
+    comments: [
+      {
+        id: 'c2-1',
+        postId: 'post-2',
+        author: 'Sophia Zhang',
+        authorAvatar: '👩‍🔬',
+        content: 'What quantization format did you choose for the 32B model? Q4_K_M or Q8_0?',
+        timeAgo: '3 hours ago',
+        likes: 15,
+        dislikes: 0,
+        userVote: null
+      },
+      {
+        id: 'c2-2',
+        postId: 'post-2',
+        author: 'Marcus Chen',
+        authorAvatar: '⚡',
+        content: 'We used Q5_K_M with flash-attention enabled in vLLM. It fits comfortably in 24GB VRAM and loses virtually 0% code syntax accuracy.',
+        timeAgo: '2 hours ago',
+        likes: 28,
+        dislikes: 0,
+        userVote: null
+      }
+    ]
   },
   {
     id: 'post-3',
     modelId: 'flux-1-pro',
     modelName: 'FLUX.1 [pro]',
     title: 'Generating pixel-perfect typography in luxury marketing mockups (Prompts included)',
-    content: 'Here are 10 production prompts using the FLUX.1 Pro API for crisp typography and billboard quality renders without needing manual Photoshop cleanups.',
+    content: 'Here are 10 production prompts using the FLUX.1 Pro API for crisp typography, accurate letterforms, and billboard quality renders without needing manual Photoshop cleanups.',
     author: 'Sarah Jenkins',
     authorAvatar: '🎨',
-    replies: 64,
+    replies: 2,
     likes: 512,
+    dislikes: 6,
+    userVote: null,
     timeAgo: '1 day ago',
-    category: 'Creations'
+    category: 'Creations',
+    comments: [
+      {
+        id: 'c3-1',
+        postId: 'post-3',
+        author: 'Marco Rivera',
+        authorAvatar: '🖌️',
+        content: 'Prompt #4 produced magazine-cover grade kerning on Helvetica-style fonts. Truly incredible prompt crafting!',
+        timeAgo: '18 hours ago',
+        likes: 22,
+        dislikes: 0,
+        userVote: null
+      },
+      {
+        id: 'c3-2',
+        postId: 'post-3',
+        author: 'Sarah Jenkins',
+        authorAvatar: '🎨',
+        content: 'Glad it helped Marco! Enclosing the target words inside double quotes with explicit typography adjectives makes a world of difference in FLUX.',
+        timeAgo: '15 hours ago',
+        likes: 14,
+        dislikes: 0,
+        userVote: null
+      }
+    ]
+  },
+  {
+    id: 'post-4',
+    modelId: 'claude-3-5-sonnet',
+    modelName: 'Claude 3.5 Sonnet',
+    title: 'Agentic Tool-Calling Patterns in Python with Claude 3.5 Sonnet',
+    content: 'Architectural blueprint for building reliable multi-step tool-calling agents. Sonnet 3.5 achieved 99.2% schema adherence across our 1,200 synthetic API definitions with zero hallucinations.',
+    author: 'David Vance',
+    authorAvatar: '🤖',
+    replies: 1,
+    likes: 740,
+    dislikes: 11,
+    userVote: null,
+    timeAgo: '1 day ago',
+    category: 'Guides',
+    comments: [
+      {
+        id: 'c4-1',
+        postId: 'post-4',
+        author: 'Rachel Lin',
+        authorAvatar: '👩‍💻',
+        content: 'Sonnet 3.5 is the only model we trust in production for executing dangerous SQL rollbacks with parameterized schemas.',
+        timeAgo: '20 hours ago',
+        likes: 31,
+        dislikes: 2,
+        userVote: null
+      }
+    ]
+  },
+  {
+    id: 'post-5',
+    modelId: 'llama-3-3-70b',
+    modelName: 'Llama 3.3 70B Instruct',
+    title: 'Self-hosting Llama 3.3 70B via Agora Launcher vs Cloud API latency comparison',
+    content: 'We benchmarked local vLLM throughput on dual RTX 4090s vs AWS EC2 hosted endpoints. For batch summarization workloads, local execution halved our monthly inference overhead.',
+    author: 'Alex K.',
+    authorAvatar: '🚀',
+    replies: 1,
+    likes: 430,
+    dislikes: 14,
+    userVote: null,
+    timeAgo: '2 days ago',
+    category: 'Discussions',
+    comments: [
+      {
+        id: 'c5-1',
+        postId: 'post-5',
+        author: 'Tomás Gomez',
+        authorAvatar: '💻',
+        content: 'How were the token generation speeds on dual 4090s with tensor parallelism? We got ~65 tok/s with AWQ quantization.',
+        timeAgo: '1 day ago',
+        likes: 9,
+        dislikes: 0,
+        userVote: null
+      }
+    ]
+  },
+  {
+    id: 'post-6',
+    modelId: 'whisper-large-v3',
+    modelName: 'Whisper Large v3 Turbo',
+    title: 'Real-time Multilingual Podcast Transcription Pipeline (Sub-100ms chunking)',
+    content: 'How we built a live podcast captioning service processing 40 simultaneous audio streams with Whisper Large v3 Turbo. Word error rate came in under 2.4% across 14 languages.',
+    author: 'Priya Patel',
+    authorAvatar: '🎙️',
+    replies: 1,
+    likes: 310,
+    dislikes: 4,
+    userVote: null,
+    timeAgo: '3 days ago',
+    category: 'Creations',
+    comments: [
+      {
+        id: 'c6-1',
+        postId: 'post-6',
+        author: 'Lars Nygård',
+        authorAvatar: '🎧',
+        content: 'Sub-100ms chunking with VAD pre-filtering is genius. Are you using Silero VAD or WebRTC VAD in front of Whisper?',
+        timeAgo: '2 days ago',
+        likes: 16,
+        dislikes: 0,
+        userVote: null
+      }
+    ]
+  },
+  {
+    id: 'post-7',
+    modelId: 'deepseek-r1',
+    modelName: 'DeepSeek-R1',
+    title: 'Deep Dive: Prompt Formatting Tips for Chain-of-Thought Steering in R1',
+    content: 'Tips on using system instructions effectively with DeepSeek-R1. Formatting queries with strict output schema tags prevents runaway token generation while preserving rigorous analytical depth.',
+    author: 'Kenji Sato',
+    authorAvatar: '🧠',
+    replies: 1,
+    likes: 580,
+    dislikes: 9,
+    userVote: null,
+    timeAgo: '3 days ago',
+    category: 'Reviews',
+    comments: [
+      {
+        id: 'c7-1',
+        postId: 'post-7',
+        author: 'Arun V.',
+        authorAvatar: '📊',
+        content: 'The XML wrapper technique works wonders. Specifying `<analysis>` and `<verdict>` tags keeps R1 concise without losing any intermediate mathematical validation.',
+        timeAgo: '2 days ago',
+        likes: 27,
+        dislikes: 0,
+        userVote: null
+      }
+    ]
   }
 ];
 

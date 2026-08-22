@@ -25,6 +25,7 @@ export interface AuthContextType {
   signUp: (params: SignUpParams) => Promise<{ success: boolean; needsEmailConfirmation?: boolean; error?: AuthErrorState }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<{ success: boolean; error?: string }>;
+  switchRole: (role: 'user' | 'creator' | 'admin') => Promise<void>;
   sendPasswordResetOtp: (email: string) => Promise<{ success: boolean; error?: string; isDemo?: boolean; demoOtp?: string }>;
   verifyOtpAndResetPassword: (email: string, otp: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
   openAuthModal: (mode?: AuthMode, returnView?: string) => void;
@@ -50,7 +51,13 @@ function getDemoRegisteredUsers(): Record<string, { password: string; profile: U
           username: 'ai_architect',
           display_name: 'AI Architect',
           avatar_url: '🤖',
+          role: 'creator',
+          creator_status: 'approved',
           is_creator: true,
+          bio: 'Deep learning researcher and open-source model builder on Agora.',
+          website_url: 'https://agora.ai/creator/demo-user-1',
+          github_url: 'https://github.com/agora-ai',
+          verified: true,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }
@@ -492,6 +499,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Switch role helper (for seamless local & remote testing of user/creator/admin workflows)
+  const switchRole = async (role: 'user' | 'creator' | 'admin') => {
+    const isCreator = role === 'creator' || role === 'admin';
+    const creatorStatus = role === 'creator' || role === 'admin' ? 'approved' : (profile?.creator_status || 'not_creator');
+    await updateProfile({
+      role,
+      is_creator: isCreator,
+      creator_status: creatorStatus
+    });
+  };
+
   // Send Password Reset OTP to existing user email
   const sendPasswordResetOtp = async (
     email: string
@@ -657,6 +675,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signUp,
     signOut,
     updateProfile,
+    switchRole,
     sendPasswordResetOtp,
     verifyOtpAndResetPassword,
     openAuthModal,

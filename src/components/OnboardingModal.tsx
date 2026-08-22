@@ -75,9 +75,9 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     stepNumber: '3',
     badge: 'Step 3 of 4 • Local AI & Launcher',
     title: '🖥️ Use AI Locally',
-    tagline: 'Private GPU Execution & AI Playground',
+    tagline: 'Private GPU Execution & Desktop Inference',
     description:
-      'Open the Agora Launcher to install supported models, run them locally, and interact with them through the AI Playground.',
+      'Open the Agora Launcher to install supported models, run them locally on your own GPU, and interact with them with zero cloud latency.',
     demoNote:
       'Supported models can be installed and run through the Agora Launcher. Some models in this demonstration use Agora\'s Demo Runtime.',
     icon: Cpu,
@@ -85,7 +85,7 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     iconColor: 'text-emerald-400',
     highlights: [
       { text: 'Install quantized GGUF weights via Ollama with 1 click', icon: HardDrive },
-      { text: 'Interactive zero-latency AI Playground with parameter tuning', icon: Terminal },
+      { text: 'Zero-latency local model inference with custom parameter tuning', icon: Terminal },
       { text: 'Demo Runtime simulation for immediate offline evaluation', icon: Sparkles }
     ],
     buttonText: 'Next'

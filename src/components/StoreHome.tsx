@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ModelCard } from './ModelCard';
 import {
@@ -9,11 +9,36 @@ import {
   ArrowRight,
   Coins,
   Server,
-  HelpCircle
+  HelpCircle,
+  MessageSquare,
+  ThumbsUp,
+  ThumbsDown,
+  PlusCircle,
+  BookOpen
 } from 'lucide-react';
 
 export const StoreHome: React.FC = () => {
-  const { models, modelsLoading, setView, setSelectedModelId, openOnboarding } = useApp();
+  const {
+    models,
+    modelsLoading,
+    posts,
+    setView,
+    setSelectedModelId,
+    openOnboarding,
+    voteCommunityPost
+  } = useApp();
+  const [activePostCategory, setActivePostCategory] = useState<string>('All');
+
+  // Filtered Community Posts for the home section
+  const displayedPosts = useMemo(() => {
+    let list = posts;
+    if (activePostCategory !== 'All') {
+      list = list.filter((p) => p.category === activePostCategory);
+    }
+    return list.slice(0, 4);
+  }, [posts, activePostCategory]);
+
+  const postCategories = ['All', 'Discussions', 'Guides', 'Creations', 'Reviews'];
 
   // Highlighted Top Models from database (filter featured & trending)
   const featuredModels = useMemo(() => {
@@ -302,6 +327,141 @@ export const StoreHome: React.FC = () => {
               <ModelCard key={model.id} model={model} />
             ))
           )}
+        </div>
+      </div>
+
+      {/* Community Posts Section */}
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-teal-500/10 border border-teal-500/20 text-teal-300 text-[10px] font-display font-extrabold uppercase tracking-wider mb-1.5">
+              <MessageSquare size={11} /> Community Posts & Discussions
+            </div>
+            <h2 className="font-display text-xl md:text-2xl font-black text-white flex items-center gap-2.5">
+              Agora Developer Community
+            </h2>
+            <p className="font-sans text-xs text-slate-400">
+              Explore benchmark findings, integration guides, prompt configurations, and architecture reviews shared by AI engineers.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={() => setView('community')}
+              className="text-xs text-teal-400 hover:text-teal-300 flex items-center gap-1 cursor-pointer font-sans font-semibold transition-colors"
+            >
+              View All Hub Posts <ArrowRight size={13} />
+            </button>
+            <button
+              onClick={() => setView('community')}
+              className="px-3.5 py-2 rounded-xl bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 border border-teal-500/30 font-display text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <PlusCircle size={14} /> Write Post
+            </button>
+          </div>
+        </div>
+
+        {/* Category Filters */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+          {postCategories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActivePostCategory(cat)}
+              className={`px-3 py-1.5 rounded-lg font-display text-xs font-bold whitespace-nowrap transition-all border cursor-pointer ${
+                activePostCategory === cat
+                  ? 'bg-teal-500/15 border-teal-500/40 text-teal-300 shadow-sm shadow-teal-500/10'
+                  : 'bg-white/[0.03] border-white/5 text-slate-400 hover:text-white hover:bg-white/[0.07]'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* Posts Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {displayedPosts.map((post) => (
+            <div
+              key={post.id}
+              className="group rounded-2xl glass-panel p-5 flex flex-col justify-between border border-white/5 hover:border-teal-500/30 transition-all duration-200"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-3 gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 font-display text-[9px] font-bold text-teal-300 uppercase tracking-wide">
+                      {post.category}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setSelectedModelId(post.modelId);
+                        setView('model-detail');
+                      }}
+                      className="font-sans text-[11px] text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer flex items-center gap-1"
+                    >
+                      <BookOpen size={11} className="text-teal-400/60" /> {post.modelName}
+                    </button>
+                  </div>
+                  <span className="font-sans text-[10px] text-slate-500 shrink-0">{post.timeAgo}</span>
+                </div>
+
+                <h3
+                  onClick={() => setView('community')}
+                  className="font-display font-black text-sm text-white mb-2 leading-snug group-hover:text-teal-300 transition-colors cursor-pointer"
+                >
+                  {post.title}
+                </h3>
+                <p className="font-sans text-xs text-slate-400 line-clamp-2 leading-relaxed mb-4">
+                  {post.content}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-white/5 pt-3.5 mt-2">
+                <div className="flex items-center gap-2">
+                  <div className="h-6 w-6 rounded-full bg-slate-800 flex items-center justify-center text-xs ring-1 ring-white/10">
+                    {post.authorAvatar}
+                  </div>
+                  <span className="font-sans text-xs font-semibold text-slate-300">{post.author}</span>
+                </div>
+
+                <div className="flex items-center gap-2 text-xs">
+                  {/* Like */}
+                  <button
+                    onClick={() => voteCommunityPost(post.id, 'like')}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-lg border transition-colors cursor-pointer ${
+                      post.userVote === 'like'
+                        ? 'bg-teal-500/20 border-teal-500/50 text-teal-300'
+                        : 'bg-white/[0.03] border-white/5 text-slate-400 hover:text-teal-300'
+                    }`}
+                  >
+                    <ThumbsUp size={11} className={post.userVote === 'like' ? 'fill-teal-400 text-teal-400' : ''} />
+                    <span>{post.likes}</span>
+                  </button>
+
+                  {/* Dislike */}
+                  <button
+                    onClick={() => voteCommunityPost(post.id, 'dislike')}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-lg border transition-colors cursor-pointer ${
+                      post.userVote === 'dislike'
+                        ? 'bg-rose-500/20 border-rose-500/50 text-rose-300'
+                        : 'bg-white/[0.03] border-white/5 text-slate-400 hover:text-rose-300'
+                    }`}
+                  >
+                    <ThumbsDown size={11} className={post.userVote === 'dislike' ? 'fill-rose-400 text-rose-400' : ''} />
+                    <span>{post.dislikes || 0}</span>
+                  </button>
+
+                  {/* Comments */}
+                  <button
+                    onClick={() => setView('community')}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/[0.03] border border-white/5 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <MessageSquare size={11} />
+                    <span>{post.comments?.length || post.replies}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

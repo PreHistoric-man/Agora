@@ -18,7 +18,12 @@ import {
   ChevronDown,
   Box,
   Download,
-  HelpCircle
+  HelpCircle,
+  MessageSquare,
+  Rocket,
+  ShieldCheck,
+  ShieldAlert,
+  Sparkles
 } from 'lucide-react';
 import { UserProfileModal } from './UserProfileModal';
 
@@ -35,7 +40,9 @@ export const Navbar: React.FC = () => {
     setSearchQuery,
     notifications,
     markNotificationsRead,
-    openOnboarding
+    openOnboarding,
+    openBecomeCreatorModal,
+    setDeveloperTab
   } = useApp();
 
   const {
@@ -43,7 +50,8 @@ export const Navbar: React.FC = () => {
     profile,
     isAuthenticated,
     openAuthModal,
-    signOut
+    signOut,
+    switchRole
   } = useAuth();
 
   const [showNotifications, setShowNotifications] = useState(false);
@@ -57,6 +65,9 @@ export const Navbar: React.FC = () => {
   const activeApisCount = activeApis.length;
   const compareCount = comparisonModelIds.length;
 
+  const isCreator = profile?.role === 'creator' || profile?.role === 'admin' || profile?.creator_status === 'approved' || profile?.is_creator;
+  const isAdmin = profile?.role === 'admin';
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
     if (currentView !== 'discover') {
@@ -64,7 +75,7 @@ export const Navbar: React.FC = () => {
     }
   };
 
-  // Nav Items: Home, Models, Compare, Playground, Library, My APIs
+  // Nav Items: Home, Models, Compare, Community, Library, My APIs, Developer, Launcher
   const navItems: Array<{
     label: string;
     view: ViewType;
@@ -81,7 +92,7 @@ export const Navbar: React.FC = () => {
       badge: compareCount > 0 ? compareCount : undefined,
       badgeColor: 'bg-indigo-500'
     },
-    { label: 'API Playground', view: 'try', icon: Zap },
+    { label: 'Community', view: 'community', icon: MessageSquare },
     {
       label: 'Library',
       view: 'library',
@@ -96,6 +107,24 @@ export const Navbar: React.FC = () => {
       badge: activeApisCount > 0 ? `${activeApisCount} Active` : undefined,
       badgeColor: 'bg-emerald-500'
     },
+    {
+      label: isCreator ? 'Developer' : 'Creator Hub',
+      view: 'developer',
+      icon: Rocket,
+      badge: isCreator ? undefined : 'Join',
+      badgeColor: 'bg-cyan-500'
+    },
+    ...(isAdmin
+      ? [
+          {
+            label: 'Admin',
+            view: 'admin' as ViewType,
+            icon: ShieldAlert,
+            badge: 'Console',
+            badgeColor: 'bg-purple-500'
+          }
+        ]
+      : []),
     { label: 'Launcher', view: 'launcher', icon: Download }
   ];
 

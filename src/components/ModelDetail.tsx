@@ -335,10 +335,10 @@ export const ModelDetail: React.FC = () => {
             )}
 
             <button
-              onClick={() => setView('try')}
-              className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-sans font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+              onClick={() => setView('community')}
+              className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-sans font-semibold flex items-center justify-center gap-1.5 cursor-pointer border border-white/5 hover:border-cyan-500/30 transition-all"
             >
-              <Zap size={13} className="text-amber-400" /> Test in Interactive Playground
+              <MessageSquare size={13} className="text-cyan-400" /> View Community Discussions
             </button>
           </div>
         </div>
